@@ -24,6 +24,7 @@ draw_hex :: proc(layout: hex.Layout, h: hex.Hex) {
 
 	// draw hex fill
 	color := h.hovered ? raylib.BLUE : raylib.YELLOW
+	if h.selected do color = raylib.GREEN
 	raylib.DrawPoly(center, 6, cast(f32)layout.radius, 30, color)
 
 	for i in 0 ..< 6 {
