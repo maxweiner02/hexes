@@ -7,7 +7,7 @@ import "vendor:raylib"
 main :: proc() {
 	width: i32 = 960
 	height: i32 = 720
-	raylib.InitWindow(width, height, cstring("Hex Grid (axial) - Odin + raylib"))
+	raylib.InitWindow(width, height, cstring("hexes"))
 	defer raylib.CloseWindow()
 	raylib.SetTargetFPS(60)
 
@@ -19,11 +19,29 @@ main :: proc() {
 
 	map_radius: i32 = 4 // small map radius
 
+	m := make(hex.HexMap)
+	defer delete(m)
+
+	for q in -map_radius ..= map_radius {
+		for r in -map_radius ..= map_radius {
+			s := -q - r
+			if (q >= -map_radius && q <= map_radius) &&
+			   (r >= -map_radius && r <= map_radius) &&
+			   (s >= -map_radius && s <= map_radius) {
+				hp := new(hex.Hex)
+				hp^.q = q
+				hp^.r = r
+				// selected defaults to false
+				hex.set_hex(&m, hp)
+			}
+		}
+	}
+
 	for !raylib.WindowShouldClose() {
 		raylib.BeginDrawing()
 		defer raylib.EndDrawing()
 		raylib.ClearBackground(raylib.RAYWHITE)
 
-		render.draw_hex_map(layout, map_radius)
+		render.draw_hex_map(layout, m)
 	}
 }
