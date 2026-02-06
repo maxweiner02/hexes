@@ -23,6 +23,8 @@ apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 					hp^.hovered = false
 				}
 			}
+		} else {
+			hp^.hovered = false
 		}
 
 		// we have a clicked hex, find it
@@ -40,6 +42,8 @@ apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 					hp^.selected = false
 				}
 			}
+		} else {
+			hp^.selected = false
 		}
 	}
 

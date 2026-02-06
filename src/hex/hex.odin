@@ -11,11 +11,3 @@ Hex :: struct {
 s_of :: proc(h: Hex) -> i32 {
 	return -h.q - h.r
 }
-
-toggle_selection :: proc(h: ^Hex) {
-	h^.selected = !h^.selected
-}
-
-set_hovered :: proc(h: ^Hex, hovering: bool) {
-	h^.hovered = hovering
-}
