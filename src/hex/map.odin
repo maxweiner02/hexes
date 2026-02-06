@@ -23,11 +23,11 @@ delete_hex :: proc(m: ^HexMap, h: ^Hex) {
 }
 
 has_hex :: proc(m: ^HexMap, q: i32, r: i32) -> bool {
-	_, found := m^[pack_axial(q, r)]
-	return found
+	_, ok := m^[pack_axial(q, r)]
+	return ok
 }
 
 get_hex :: proc(m: ^HexMap, q: i32, r: i32) -> (^Hex, bool) {
-	h, found := m^[pack_axial(q, r)]
-	return h, found
+	h, ok := m^[pack_axial(q, r)]
+	return h, ok
 }

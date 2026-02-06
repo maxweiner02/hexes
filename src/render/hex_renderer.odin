@@ -18,28 +18,27 @@ draw_coordinates :: proc(layout: hex.Layout, h: hex.Hex, color: raylib.Color) {
 	raylib.DrawText(text, x, y, 10, color)
 }
 
-draw_hex :: proc(layout: hex.Layout, h: hex.Hex, color: raylib.Color) {
+draw_hex :: proc(layout: hex.Layout, h: hex.Hex) {
 	corners := hex.hex_corners(layout, h)
 	center := hex.axial_to_pixel(layout, h)
-	for i in 0 ..< 6 {
-		// fill in background
-		if raylib.CheckCollisionPointPoly(raylib.GetMousePosition(), &corners[0], 6) {
-			raylib.DrawPoly(center, 6, cast(f32)layout.radius, 30, raylib.BLUE)
-		} else {
-			color := h.selected ? raylib.GREEN : raylib.YELLOW
-			raylib.DrawPoly(center, 6, cast(f32)layout.radius, 30, color)
-		}
 
+	// draw hex fill
+	color := h.hovered ? raylib.BLUE : raylib.YELLOW
+	raylib.DrawPoly(center, 6, cast(f32)layout.radius, 30, color)
+
+	for i in 0 ..< 6 {
 		// draw borders
 		j := (i + 1) % 6
-		raylib.DrawLineV(corners[i], corners[j], color)
+		raylib.DrawLineV(corners[i], corners[j], raylib.BLACK)
 	}
-	draw_coordinates(layout, h, color)
+
+	// draw coord text
+	draw_coordinates(layout, h, raylib.BLACK)
 }
 
 // Iterate over the HexMap and draw each stored hex at its coordinates.
-draw_hex_map :: proc(layout: hex.Layout, m: hex.HexMap) {
+draw_hex_map :: proc(m: hex.HexMap, layout: hex.Layout) {
 	for _, hp in m {
-		draw_hex(layout, hp^, raylib.BLACK)
+		draw_hex(layout, hp^)
 	}
 }

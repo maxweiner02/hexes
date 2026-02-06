@@ -1,8 +1,32 @@
 package app
 
 import "src:hex"
+import "src:input"
 import "src:render"
 import "vendor:raylib"
+
+apply_input_to_map :: proc(input_state: ^input.InputState, m: ^hex.HexMap) {
+	// go through HexMap
+	for _, hp in m {
+		// we have a hovered hex, find it
+		if input_state.has_last_hovered == true {
+			// get coords for hovered hex
+			q, r := hex.unpack_axial(input_state.last_hovered_key)
+			// make sure it exists
+			hovered_hex, ok := hex.get_hex(m, q, r)
+			if ok {
+				// found it, make hovered true
+				if hp == hovered_hex {
+					hp^.hovered = true
+				} else {
+					// not it, hover needs to be false
+					hp^.hovered = false
+				}
+			}
+		}
+	}
+
+}
 
 main :: proc() {
 	width: i32 = 960
@@ -17,7 +41,13 @@ main :: proc() {
 		origin = raylib.Vector2{cast(f32)width / 2, cast(f32)height / 2}, // center the grid
 	}
 
-	map_radius: i32 = 4 // small map radius
+	// Input State
+	input_state := input.InputState {
+		last_hovered_key = 0,
+		has_last_hovered = false,
+	}
+
+	map_radius: i32 = 6 // small map radius
 
 	m := make(hex.HexMap)
 	defer delete(m)
@@ -38,10 +68,16 @@ main :: proc() {
 	}
 
 	for !raylib.WindowShouldClose() {
+		// check all inputs to mutate the InputState
+		input.handle_mouse(&input_state, &m, layout)
+
+		// mutate the hexMap according to the InputState
+		apply_input_to_map(&input_state, &m)
+
 		raylib.BeginDrawing()
 		defer raylib.EndDrawing()
 		raylib.ClearBackground(raylib.RAYWHITE)
 
-		render.draw_hex_map(layout, m)
+		render.draw_hex_map(m, layout)
 	}
 }
