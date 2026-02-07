@@ -5,7 +5,7 @@ import "vendor:raylib"
 
 SQRT3_F64: f64 = math.sqrt(cast(f64)3.0)
 
-axial_to_pixel :: proc(layout: Layout, h: Hex) -> raylib.Vector2 {
+axial_to_pixel :: proc(layout: Layout, h: ^Hex) -> raylib.Vector2 {
 	// x = (√3 * q + √3/2 * r) * radius
 	x :=
 		(cast(f32)SQRT3_F64 * cast(f32)h.q + cast(f32)(SQRT3_F64 / 2) * cast(f32)h.r) *
@@ -24,7 +24,7 @@ hex_corner_offset :: proc(layout: Layout, corner: int) -> raylib.Vector2 {
 	return {cx, cy}
 }
 
-hex_corners :: proc(layout: Layout, h: Hex) -> [6]raylib.Vector2 {
+hex_corners :: proc(layout: Layout, h: ^Hex) -> [6]raylib.Vector2 {
 	center := axial_to_pixel(layout, h)
 	result: [6]raylib.Vector2
 	for i in 0 ..< 6 {
