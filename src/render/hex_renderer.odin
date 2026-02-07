@@ -5,7 +5,7 @@ import "core:strings"
 import "src:hex"
 import "vendor:raylib"
 
-draw_coordinates :: proc(layout: hex.Layout, h: hex.Hex, color: raylib.Color) {
+draw_coordinates :: proc(layout: hex.Layout, h: ^hex.Hex, color: raylib.Color) {
 	center := hex.axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
 	text := strings.clone_to_cstring(coords)
@@ -18,7 +18,7 @@ draw_coordinates :: proc(layout: hex.Layout, h: hex.Hex, color: raylib.Color) {
 	raylib.DrawText(text, x, y, 10, color)
 }
 
-draw_hex :: proc(layout: hex.Layout, h: hex.Hex) {
+draw_hex :: proc(layout: hex.Layout, h: ^hex.Hex) {
 	corners := hex.hex_corners(layout, h)
 	center := hex.axial_to_pixel(layout, h)
 
@@ -39,7 +39,7 @@ draw_hex :: proc(layout: hex.Layout, h: hex.Hex) {
 
 // Iterate over the HexMap and draw each stored hex at its coordinates.
 draw_hex_map :: proc(m: hex.HexMap, layout: hex.Layout) {
-	for _, hp in m {
-		draw_hex(layout, hp^)
+	for _, &hp in m {
+		draw_hex(layout, &hp)
 	}
 }

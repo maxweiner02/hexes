@@ -7,7 +7,7 @@ import "vendor:raylib"
 
 apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 	// go through HexMap
-	for _, hp in m {
+	for _, &hp in m {
 		// we have a hovered hex, find it
 		if input_state.has_last_hovered == true {
 			// get coords for hovered hex
@@ -16,15 +16,15 @@ apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 			hovered_hex, ok := hex.get_hex(m, q, r)
 			if ok {
 				// found it, make hovered true
-				if hp == hovered_hex {
-					hp^.hovered = true
+				if &hp == hovered_hex {
+					hp.hovered = true
 				} else {
 					// not it, hover needs to be false
-					hp^.hovered = false
+					hp.hovered = false
 				}
 			}
 		} else {
-			hp^.hovered = false
+			hp.hovered = false
 		}
 
 		// we have a clicked hex, find it
@@ -35,15 +35,15 @@ apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 			clicked_hex, ok := hex.get_hex(m, q, r)
 			if ok {
 				// found it, make selected true
-				if hp == clicked_hex {
-					hp^.selected = true
+				if &hp == clicked_hex {
+					hp.selected = true
 				} else {
 					// not it, selected needs to be false
-					hp^.selected = false
+					hp.selected = false
 				}
 			}
 		} else {
-			hp^.selected = false
+			hp.selected = false
 		}
 	}
 
@@ -80,9 +80,10 @@ main :: proc() {
 			if (q >= -map_radius && q <= map_radius) &&
 			   (r >= -map_radius && r <= map_radius) &&
 			   (s >= -map_radius && s <= map_radius) {
-				hp := new(hex.Hex)
-				hp^.q = q
-				hp^.r = r
+				hp := hex.Hex {
+          q = q,
+          r = r,
+        }
 				// selected defaults to false
 				hex.set_hex(&m, hp)
 			}
