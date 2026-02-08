@@ -1,19 +1,16 @@
-package app
+package hexes
 
-import "src:hex"
-import "src:input"
-import "src:render"
 import "vendor:raylib"
 
-apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
+apply_input_to_map :: proc(input_state: InputState, m: ^HexMap) {
 	// go through HexMap
 	for _, &hp in m {
 		// we have a hovered hex, find it
 		if input_state.has_last_hovered == true {
 			// get coords for hovered hex
-			q, r := hex.unpack_axial(input_state.last_hovered_key)
+			q, r := unpack_axial(input_state.last_hovered_key)
 			// make sure it exists
-			hovered_hex, ok := hex.get_hex(m, q, r)
+			hovered_hex, ok := get_hex(m, q, r)
 			if ok {
 				// found it, make hovered true
 				if &hp == hovered_hex {
@@ -30,9 +27,9 @@ apply_input_to_map :: proc(input_state: input.InputState, m: ^hex.HexMap) {
 		// we have a clicked hex, find it
 		if input_state.has_last_selected == true {
 			// get coords for clicked hex
-			q, r := hex.unpack_axial(input_state.last_selected_key)
+			q, r := unpack_axial(input_state.last_selected_key)
 			// make sure it exists
-			clicked_hex, ok := hex.get_hex(m, q, r)
+			clicked_hex, ok := get_hex(m, q, r)
 			if ok {
 				// found it, make selected true
 				if &hp == clicked_hex {
@@ -56,13 +53,13 @@ main :: proc() {
 	defer raylib.CloseWindow()
 	raylib.SetTargetFPS(60)
 
-	layout := hex.Layout {
+	layout := Layout {
 		radius = 30,
 		origin = raylib.Vector2{cast(f32)width / 2, cast(f32)height / 2}, // center the grid
 	}
 
 	// Input State
-	input_state := input.InputState {
+	input_state := InputState {
 		last_hovered_key  = 0,
 		last_selected_key = 0,
 		has_last_hovered  = false,
@@ -71,7 +68,7 @@ main :: proc() {
 
 	map_radius: i32 = 6
 
-	m := make(hex.HexMap)
+	m := make(HexMap)
 	defer delete(m)
 
 	for q in -map_radius ..= map_radius {
@@ -80,19 +77,19 @@ main :: proc() {
 			if (q >= -map_radius && q <= map_radius) &&
 			   (r >= -map_radius && r <= map_radius) &&
 			   (s >= -map_radius && s <= map_radius) {
-				hp := hex.Hex {
+				hp := Hex {
 					q = q,
 					r = r,
 				}
 				// selected defaults to false
-				hex.set_hex(&m, hp)
+				set_hex(&m, hp)
 			}
 		}
 	}
 
 	for !raylib.WindowShouldClose() {
 		// check all inputs to mutate the InputState
-		input.handle_mouse(&input_state, m, layout)
+		handle_mouse(&input_state, m, layout)
 
 		// mutate the hexMap according to the InputState
 		apply_input_to_map(input_state, &m)
@@ -101,6 +98,6 @@ main :: proc() {
 		defer raylib.EndDrawing()
 		raylib.ClearBackground(raylib.RAYWHITE)
 
-		render.draw_hex_map(m, layout)
+		draw_hex_map(m, layout)
 	}
 }

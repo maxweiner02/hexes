@@ -13,7 +13,7 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "odin build src/app -debug -out:build/debug.exe -collection:src=src",
+      "command": "odin build src -debug -out:build/debug.exe",
       "group": "build"
     },
     {

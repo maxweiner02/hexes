@@ -1,4 +1,4 @@
-package hex
+package hexes
 
 HexMap :: map[i64]Hex
 

@@ -1,4 +1,4 @@
-package hex
+package hexes
 
 import "vendor:raylib"
 

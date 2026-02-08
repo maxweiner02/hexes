@@ -1,4 +1,4 @@
-package hex
+package hexes
 
 Hex :: struct {
 	q:        i32,
