@@ -35,8 +35,12 @@ get_mouse_pos :: raylib.GetMousePosition
 
 is_mouse_button_pressed :: raylib.IsMouseButtonPressed
 
+is_key_down :: raylib.IsKeyDown
+
 LEFT_CLICK :: raylib.MouseButton.LEFT
 RIGHT_CLICK :: raylib.MouseButton.RIGHT
+
+SHIFT_KEY :: raylib.KeyboardKey.LEFT_SHIFT
 
 BLACK :: raylib.BLACK
 WHITE :: raylib.WHITE

@@ -14,6 +14,11 @@ add_hex :: proc(hmap: ^Hex_Map, hex: Hex) {
 	hmap^.hmap[pack_hex(hex)] = hex
 }
 
+// returns a bounding-box index for axial coords by shifting into non-negative coordinates
+get_hex_idx :: proc(q: int, r: int) -> int {
+	return (q + MAP_RADIUS) + (r + MAP_RADIUS) * MAP_DIAMETER
+}
+
 pack_hex :: proc(hex: Hex) -> i64 {
 	return pack_axial(hex.q, hex.r)
 }
@@ -24,33 +29,10 @@ pack_axial :: proc(q: int, r: int) -> i64 {
 }
 
 @(private = "file")
-unpack_axial :: proc(key: i64) -> (q: i32, r: i32) {
-	return i32(key >> 32), i32(key)
-}
-
-@(private = "file")
-set_hex :: proc(m: ^Hex_Map, h: Hex) {
-	m^.hmap[pack_hex(h)] = h
-}
-
-@(private = "file")
-delete_hex :: proc(m: ^Hex_Map, h: ^Hex) {
-	delete_key(&m^.hmap, pack_hex(h^))
-}
-
-@(private = "file")
-has_hex :: proc(m: ^Hex_Map, q: int, r: int) -> bool {
-	_, ok := m^.hmap[pack_axial(q, r)]
-	return ok
-}
-
-@(private = "file")
 get_hex :: proc(m: ^Hex_Map, q: int, r: int) -> (^Hex, bool) {
 	h, ok := &m^.hmap[pack_axial(q, r)]
 	return h, ok
 }
-
-// --- Geometry (consolidated from geometry.odin) ---
 
 @(private = "file")
 axial_to_pixel :: proc(layout: Hex_Layout, h: ^Hex) -> Vec2 {
@@ -84,7 +66,6 @@ hex_corners :: proc(layout: Hex_Layout, h: ^Hex) -> [6]Vec2 {
 	return result
 }
 
-
 get_hex_for_vec :: proc(hmap: ^Hex_Map, pos: Vec2) -> (^Hex, bool) {
 	for _, &hex in hmap.hmap {
 		corners := hex_corners(hmap.layout, &hex)
@@ -97,6 +78,7 @@ get_hex_for_vec :: proc(hmap: ^Hex_Map, pos: Vec2) -> (^Hex, bool) {
 	return nil, false
 }
 
+@(private = "file")
 draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: raylib.Color) {
 	center := axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
@@ -110,16 +92,23 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: raylib.Color) {
 	raylib.DrawText(text, x, y, 10, color)
 }
 
+@(private = "file")
 draw_hex :: proc(hex: ^Hex) {
 	layout := game.test_map.layout
 
 	color := YELLOW
 
-	if game.player.is_hovering && game.player.hover_hex_key == pack_hex(hex^) {
+	hex_key := pack_hex(hex^)
+
+	if game.player.is_hovering && game.player.hover_hex_key == hex_key {
 		color = BLUE
 	}
 
-	if game.player.is_selecting && game.player.select_hex_key == pack_hex(hex^) {
+	idx := get_hex_idx(hex.q, hex.r)
+	is_selected := ba_get(&game.player.select_hex_idx, uint(idx))
+	ok := game.player.is_selecting && is_selected
+
+	if ok {
 		color = GREEN
 	}
 
@@ -138,8 +127,7 @@ draw_hex_map :: proc() {
 }
 
 Hex :: struct {
-	q, r:              int,
-	selected, hovered: bool,
+	q, r: int,
 }
 
 Hex_Layout :: struct {

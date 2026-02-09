@@ -1,5 +1,6 @@
 package hexes
 
+
 game: ^Game
 
 init_game :: proc() {
@@ -14,9 +15,6 @@ init_test_map :: proc() {
 		layout = {radius = 30, origin = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2}},
 	}
 
-
-	MAP_RADIUS :: 6
-
 	for q in -MAP_RADIUS ..= MAP_RADIUS {
 		(q >= -MAP_RADIUS && q <= MAP_RADIUS) or_continue
 
@@ -27,14 +25,16 @@ init_test_map :: proc() {
 
 			(s >= -MAP_RADIUS && s <= MAP_RADIUS) or_continue
 
-
 			add_hex(&game.test_map, Hex{q = q, r = r})
 		}
 	}
 }
 
 shutdown_game :: proc() {
+	ba_destroy(&game.player.select_hex_idx)
 	delete(game.test_map.hmap)
+
+	free(game)
 }
 
 run_game_loop :: proc() {

@@ -1,12 +1,15 @@
 package hexes
 
+
 init_player :: proc() {
 	game.player = {
 		hover_hex_key  = 0,
+		select_hex_idx = {},
 		is_hovering    = false,
-		select_hex_key = 0,
 		is_selecting   = false,
 	}
+
+	ba_init(&game.player.select_hex_idx, MAP_HEX_COUNT)
 }
 
 update_player :: proc(dt: f32) {
@@ -31,15 +34,27 @@ update_player :: proc(dt: f32) {
 			game.player.is_selecting = ok
 
 			if ok {
-				game.player.select_hex_key = pack_hex(hex^)
+				idx := get_hex_idx(hex.q, hex.r)
+				if is_key_down(SHIFT_KEY) {
+					is_selected := ba_get(&game.player.select_hex_idx, uint(idx))
+					if is_selected {
+						ba_unset(&game.player.select_hex_idx, uint(idx))
+					} else {
+						ba_set(&game.player.select_hex_idx, uint(idx), true)
+					}
+				} else {
+					ba_clear(&game.player.select_hex_idx)
+					ba_set(&game.player.select_hex_idx, uint(idx), true)
+				}
+			} else {
+				ba_clear(&game.player.select_hex_idx)
 			}
 		}
 	}
 }
 
 Player :: struct {
-	hover_hex_key:  i64,
-	is_hovering:    bool,
-	select_hex_key: i64,
-	is_selecting:   bool,
+	hover_hex_key:             i64,
+	select_hex_idx:            Bit_Array,
+	is_hovering, is_selecting: bool,
 }
