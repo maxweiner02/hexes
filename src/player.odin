@@ -3,16 +3,20 @@ package hexes
 
 init_player :: proc() {
 	game.player = {
-		hover_hex_id  = 0,
-		select_hex_id = 0,
-		is_hovering   = false,
-		is_selecting  = false,
+		accessible_hex_ids = get_accessible_hexes(pack_axial(0, 0), 4),
+		location_hex_id    = pack_axial(0, 0),
+		hover_hex_id       = 0,
+		select_hex_id      = 0,
+		is_hovering        = false,
+		is_selecting       = false,
+		movement_range     = 4,
 	}
 }
 
 update_player :: proc(dt: f32) {
 	update_player_hover(dt)
 	update_player_selection(dt)
+	update_player_movement(dt)
 }
 
 @(private = "file")
@@ -40,8 +44,38 @@ update_player_selection :: proc(dt: f32) {
 	}
 }
 
+update_player_movement :: proc(dt: f32) {
+	if !is_mouse_button_released(RIGHT_CLICK) do return
+
+	if game.player.is_hovering {
+		can_move: bool
+		for id in game.player.accessible_hex_ids {
+			if id == game.player.hover_hex_id {
+				can_move = true
+				break
+			}
+		}
+
+		if can_move {
+			game.player.location_hex_id = game.player.hover_hex_id
+
+			if game.player.accessible_hex_ids != nil {
+				delete(game.player.accessible_hex_ids)
+			}
+
+			game.player.accessible_hex_ids = get_accessible_hexes(
+				game.player.location_hex_id,
+				game.player.movement_range,
+			)
+		}
+	}
+}
+
 Player :: struct {
+	accessible_hex_ids:        []Hex_Id,
+	location_hex_id:           Hex_Id,
 	hover_hex_id:              Hex_Id,
 	select_hex_id:             Hex_Id,
 	is_hovering, is_selecting: bool,
+	movement_range:            int,
 }

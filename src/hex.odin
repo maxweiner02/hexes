@@ -2,7 +2,6 @@ package hexes
 
 import "core:fmt"
 import "core:math"
-import "vendor:raylib"
 
 // q + r + s = 0
 s_of :: proc(h: Hex) -> int {
@@ -17,7 +16,6 @@ pack_hex :: proc(hex: Hex) -> Hex_Id {
 	return pack_axial(hex.q, hex.r)
 }
 
-@(private = "file")
 pack_axial :: proc(q: int, r: int) -> Hex_Id {
 	return (i64(q) << 32) | i64(u32(r))
 }
@@ -91,13 +89,13 @@ draw_hex :: proc(hex: ^Hex) {
 	color: ColorEx
 
 	switch hex.terrain {
-	case Terrain.Lava:
+	case Terrain_Type.Lava:
 		color = RED
-	case Terrain.Grass:
+	case Terrain_Type.Grass:
 		color = GREEN
-	case Terrain.Desert:
+	case Terrain_Type.Desert:
 		color = YELLOW
-	case Terrain.Snow:
+	case Terrain_Type.Snow:
 		color = WHITE
 	}
 
@@ -115,9 +113,20 @@ draw_hex :: proc(hex: ^Hex) {
 		draw_poly(center, 6, f32(layout.radius), 30, SELECTED_WHITE)
 	}
 
+	for reachable_id in game.player.accessible_hex_ids {
+		if hex_id == reachable_id {
+			draw_poly(center, 6, f32(layout.radius), 30, REACHABLE_WHITE)
+		}
+	}
+
 	draw_poly_lines(center, 6, f32(layout.radius), 30, BLACK)
 
-	draw_coordinates(layout, hex, raylib.BLACK)
+	if hex_id == game.player.location_hex_id {
+		draw_poly(center, 4, 10, 0, PURPLE)
+	} else {
+		draw_coordinates(layout, hex, BLACK)
+	}
+
 }
 
 draw_hex_map :: proc() {
@@ -128,16 +137,25 @@ draw_hex_map :: proc() {
 
 Hex_Id :: i64
 
-Terrain :: enum {
+Terrain_Type :: enum int {
 	Lava,
 	Grass,
 	Desert,
 	Snow,
 }
 
+Terrain :: struct {
+	name:     string,
+	passable: bool,
+}
+
+terrain_of :: proc(t: Terrain_Type) -> Terrain {
+	return game.level.terrains[cast(int)t]
+}
+
 Hex :: struct {
 	q, r:    int,
-	terrain: Terrain,
+	terrain: Terrain_Type,
 }
 
 Hex_Layout :: struct {

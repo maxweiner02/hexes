@@ -41,11 +41,81 @@ axial_lerp :: proc(a: Hex, b: Hex, dist: f32) -> Hex {
 }
 
 // given two Hexes, returns an array of all Hexes that form a line between
-axial_linedraw :: proc(a: Hex, b: Hex) -> []Hex {
+axial_linedraw :: proc(a: Hex, b: Hex, allocator := context.temp_allocator) -> []Hex {
 	dist := axial_distance(a, b)
-	results := make([dynamic]Hex, 0)
+	results := make([dynamic]Hex, 0, allocator)
+	defer delete(results)
 	for i in 0 ..= dist {
 		append(&results, axial_lerp(a, b, (1.0 / dist * i)))
 	}
 	return results[:]
 }
+
+// given a hex_id and a movement range, return an array of hex_ids that can be reached
+get_accessible_hexes :: proc(
+	start_id: Hex_Id,
+	movement: int,
+	allocator := context.allocator,
+) -> []Hex_Id {
+	start := game.level.hex_map.hmap[start_id]
+
+	visited := make(map[i64]bool, allocator)
+	defer delete(visited)
+	visited[start_id] = true
+
+	fringes := make([dynamic][dynamic]Hex, 0, allocator)
+	defer delete(fringes)
+	start_arr := make([dynamic]Hex, 0, allocator)
+	append(&start_arr, start)
+	append(&fringes, start_arr)
+
+	for k in 1 ..= movement {
+		// start an empty frontier for distance k
+		arr := make([dynamic]Hex, 0, allocator)
+		append(&fringes, arr)
+
+		prev := fringes[k - 1]
+		for h in prev {
+			// iterate 6 axial directions
+			for dir in 0 ..< 6 {
+				d := AXIAL_DIRECTION_VECTORS[dir]
+				neighbor := Hex {
+					q = h.q + int(d[0]),
+					r = h.r + int(d[1]),
+				}
+				hex_id := pack_hex(neighbor)
+
+				// out-of-bounds or blocked: skip if not present in map
+				if !(hex_id in game.level.hex_map.hmap) {
+					continue
+				}
+
+				// don't add it if the terrain is impassable
+				if !terrain_of(game.level.hex_map.hmap[hex_id].terrain).passable do continue
+
+				// already visited: skip
+				if hex_id in visited {
+					continue
+				}
+
+				// mark visited and add to current frontier
+				visited[hex_id] = true
+				append(&fringes[k], neighbor)
+			}
+		}
+	}
+
+	for ring in fringes {
+		delete(ring)
+	}
+
+	result := make([]Hex_Id, len(visited), allocator)
+	i := 0
+	for id in visited {
+		result[i] = id
+		i += 1
+	}
+	return result
+}
+
+AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}
