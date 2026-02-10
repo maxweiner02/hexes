@@ -59,6 +59,8 @@ check_collision_point_poly :: raylib.CheckCollisionPointPoly
 get_mouse_pos :: raylib.GetMousePosition
 get_wheel_scroll :: raylib.GetMouseWheelMove
 
+screen_to_world_2d :: raylib.GetScreenToWorld2D
+
 is_mouse_button_pressed :: raylib.IsMouseButtonPressed
 is_mouse_button_released :: raylib.IsMouseButtonReleased
 

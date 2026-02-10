@@ -41,11 +41,11 @@ axial_lerp :: proc(a: Hex, b: Hex, dist: f32) -> Hex {
 }
 
 // given two Hexes, returns an array of all Hexes that form a line between
-axial_linedraw :: proc(a: Hex, b: Hex) -> [dynamic]Hex {
+axial_linedraw :: proc(a: Hex, b: Hex) -> []Hex {
 	dist := axial_distance(a, b)
 	results := make([dynamic]Hex, 0)
 	for i in 0 ..= dist {
 		append(&results, axial_lerp(a, b, (1.0 / dist * i)))
 	}
-	return results
+	return results[:]
 }

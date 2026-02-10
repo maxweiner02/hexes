@@ -18,8 +18,9 @@ update_player :: proc(dt: f32) {
 @(private = "file")
 update_player_hover :: proc(dt: f32) {
 	mouse_pos := get_mouse_pos()
+	mouse_world := screen_to_world_2d(mouse_pos, game.camera)
 
-	hex, ok := get_hex_for_vec(&game.level.hex_map, mouse_pos)
+	hex, ok := get_hex_for_vec(&game.level.hex_map, mouse_world)
 
 	game.player.is_hovering = ok
 

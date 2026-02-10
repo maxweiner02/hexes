@@ -10,7 +10,7 @@ init_game :: proc() {
 	game.camera = {
 		target = {0, 0},
 		offset = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2},
-		zoom   = 1,
+		zoom   = 1.5,
 	}
 }
 
