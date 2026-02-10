@@ -2,7 +2,6 @@ package hexes
 
 import "core:fmt"
 import "core:math"
-import "core:strings"
 import "vendor:raylib"
 
 // q + r + s = 0
@@ -14,17 +13,12 @@ add_hex :: proc(hmap: ^Hex_Map, hex: Hex) {
 	hmap^.hmap[pack_hex(hex)] = hex
 }
 
-// returns a bounding-box index for axial coords by shifting into non-negative coordinates
-get_hex_idx :: proc(q: int, r: int) -> int {
-	return (q + MAP_RADIUS) + (r + MAP_RADIUS) * MAP_DIAMETER
-}
-
-pack_hex :: proc(hex: Hex) -> i64 {
+pack_hex :: proc(hex: Hex) -> Hex_Id {
 	return pack_axial(hex.q, hex.r)
 }
 
 @(private = "file")
-pack_axial :: proc(q: int, r: int) -> i64 {
+pack_axial :: proc(q: int, r: int) -> Hex_Id {
 	return (i64(q) << 32) | i64(u32(r))
 }
 
@@ -79,63 +73,60 @@ get_hex_for_vec :: proc(hmap: ^Hex_Map, pos: Vec2) -> (^Hex, bool) {
 }
 
 @(private = "file")
-draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: raylib.Color) {
+draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 	center := axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
-	text := strings.clone_to_cstring(coords)
-	defer delete(text)
 
-	text_width := raylib.MeasureText(text, 12)
-	x := i32(center.x) - text_width / 2
-	y := i32(center.y) - 6
+	pos := measure_text(coords, 10, 1)
+	x := f32(center.x) - pos.x / 2
+	y := f32(center.y) - 6
 
-	raylib.DrawText(text, x, y, 10, color)
+	draw_text(coords, {x, y}, 10, 1, color)
 }
 
 @(private = "file")
 draw_hex :: proc(hex: ^Hex) {
-	layout := game.test_map.layout
+	layout := game.level.hex_map.layout
 
 	color := YELLOW
 
-	hex_key := pack_hex(hex^)
+	hex_id := pack_hex(hex^)
 
-	if game.player.is_hovering && game.player.hover_hex_key == hex_key {
-		color = BLUE
-	}
-
-	idx := get_hex_idx(hex.q, hex.r)
-	is_selected := ba_get(&game.player.select_hex_idx, uint(idx))
-	ok := game.player.is_selecting && is_selected
-
-	if ok {
+	if game.player.is_selecting && game.player.select_hex_id == hex_id {
 		color = GREEN
 	}
 
 	center := axial_to_pixel(layout, hex)
 
 	draw_poly(center, 6, f32(layout.radius), 30, color)
+
+	if game.player.is_hovering && game.player.hover_hex_id == hex_id {
+		draw_poly(center, 6, f32(layout.radius), 30, SELECTED_WHITE)
+	}
+
 	draw_poly_lines(center, 6, f32(layout.radius), 30, BLACK)
 
 	draw_coordinates(layout, hex, raylib.BLACK)
 }
 
 draw_hex_map :: proc() {
-	for _, &hex in game.test_map.hmap {
+	for _, &hex in game.level.hex_map.hmap {
 		draw_hex(&hex)
 	}
 }
+
+Hex_Id :: i64
 
 Hex :: struct {
 	q, r: int,
 }
 
 Hex_Layout :: struct {
-	origin: raylib.Vector2,
-	radius: i32,
+	radius: int,
+	origin: Vec2,
 }
 
 Hex_Map :: struct {
-	hmap:   map[i64]Hex,
+	hmap:   map[Hex_Id]Hex,
 	layout: Hex_Layout,
 }

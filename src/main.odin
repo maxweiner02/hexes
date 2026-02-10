@@ -34,7 +34,7 @@ main :: proc() {
 
 	{
 		init_game()
-		init_test_map()
+		init_level()
 		init_player()
 
 		free_all(context.temp_allocator)
