@@ -1,6 +1,7 @@
 package hexes
 
 import "core:math/linalg"
+import "core:math/rand"
 
 game: ^Game
 
@@ -35,7 +36,10 @@ init_level :: proc() {
 
 			(s >= -MAP_RADIUS && s <= MAP_RADIUS) or_continue
 
-			add_hex(&game.level.hex_map, Hex{q = q, r = r})
+			add_hex(
+				&game.level.hex_map,
+				Hex{q = q, r = r, terrain = Terrain(rand.int_range(0, 4))},
+			)
 		}
 	}
 }

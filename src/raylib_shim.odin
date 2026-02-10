@@ -79,6 +79,7 @@ WHITE :: raylib.WHITE
 YELLOW :: raylib.YELLOW
 BLUE :: raylib.BLUE
 GREEN :: raylib.GREEN
+RED :: raylib.RED
 
 SELECTED_WHITE :: ColorEx{245, 245, 245, 165}
 

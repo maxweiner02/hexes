@@ -88,12 +88,23 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 draw_hex :: proc(hex: ^Hex) {
 	layout := game.level.hex_map.layout
 
-	color := YELLOW
+	color: ColorEx
+
+	switch hex.terrain {
+	case Terrain.Lava:
+		color = RED
+	case Terrain.Grass:
+		color = GREEN
+	case Terrain.Desert:
+		color = YELLOW
+	case Terrain.Snow:
+		color = WHITE
+	}
 
 	hex_id := pack_hex(hex^)
 
 	if game.player.is_selecting && game.player.select_hex_id == hex_id {
-		color = GREEN
+		color = BLUE
 	}
 
 	center := axial_to_pixel(layout, hex)
@@ -117,8 +128,16 @@ draw_hex_map :: proc() {
 
 Hex_Id :: i64
 
+Terrain :: enum {
+	Lava,
+	Grass,
+	Desert,
+	Snow,
+}
+
 Hex :: struct {
-	q, r: int,
+	q, r:    int,
+	terrain: Terrain,
 }
 
 Hex_Layout :: struct {
