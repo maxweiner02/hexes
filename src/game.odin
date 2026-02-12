@@ -26,13 +26,8 @@ init_level :: proc() {
 		hex_map = test_map,
 	}
 
-	// Initialize the single terrain registry for this level
-	game.level.terrains = [4]Terrain {
-		Terrain{name = "Lava", passable = false},
-		Terrain{name = "Grass", passable = true},
-		Terrain{name = "Desert", passable = true},
-		Terrain{name = "Snow", passable = true},
-	}
+	all_terrains := [?]Terrain_Type{.Lava, .Grass, .Desert, .Wall}
+
 
 	for q in -MAP_RADIUS ..= MAP_RADIUS {
 		(q >= -MAP_RADIUS && q <= MAP_RADIUS) or_continue
@@ -44,12 +39,12 @@ init_level :: proc() {
 
 			(s >= -MAP_RADIUS && s <= MAP_RADIUS) or_continue
 
-			add_hex(
-				&game.level.hex_map,
-				Hex{q = q, r = r, terrain = Terrain_Type(rand.int_range(0, 4))},
-			)
+			add_hex(&game.level.hex_map, Hex{q = q, r = r, terrain = rand.choice(all_terrains[:])})
 		}
 	}
+
+	// for now make sure the origin is not impassable
+	(&game.level.hex_map.hmap[pack_axial(0, 0)]).terrain = .Grass
 }
 
 shutdown_game :: proc() {
@@ -128,9 +123,8 @@ zoom_camera :: proc() {
 }
 
 Level :: struct {
-	name:     string,
-	hex_map:  Hex_Map,
-	terrains: [4]Terrain,
+	name:    string,
+	hex_map: Hex_Map,
 }
 
 Game :: struct {

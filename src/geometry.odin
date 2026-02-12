@@ -1,5 +1,6 @@
 package hexes
 
+import pq "core:container/priority_queue"
 import "core:math"
 import "vendor:raylib"
 
@@ -52,70 +53,55 @@ axial_linedraw :: proc(a: Hex, b: Hex, allocator := context.temp_allocator) -> [
 }
 
 // given a hex_id and a movement range, return an array of hex_ids that can be reached
+// uses a BFS (Breadth-First-Search) to look for ALL possible hexes within a movement range
+// TODO: Use Dijkstra's Algorithm to implement 'cost' values from terrain types
 get_accessible_hexes :: proc(
 	start_id: Hex_Id,
 	movement: int,
 	allocator := context.allocator,
 ) -> []Hex_Id {
 	start := game.level.hex_map.hmap[start_id]
+	frontier: pq.Priority_Queue(Hex)
+	pq.init(&frontier, pq_min_cmp, pq.default_swap_proc)
+	pq.push(&frontier, start)
 
-	visited := make(map[i64]bool, allocator)
-	defer delete(visited)
-	visited[start_id] = true
+	came_from := make(map[Hex_Id]Hex)
+	came_from[start_id] = nil
 
-	fringes := make([dynamic][dynamic]Hex, 0, allocator)
-	defer delete(fringes)
-	start_arr := make([dynamic]Hex, 0, allocator)
-	append(&start_arr, start)
-	append(&fringes, start_arr)
+	cost_so_far := make(map[Hex_Id]int)
+	cost_so_far[start_id] = 0
 
-	for k in 1 ..= movement {
-		// start an empty frontier for distance k
-		arr := make([dynamic]Hex, 0, allocator)
-		append(&fringes, arr)
+	len := pq.len(&frontier)
+	for len > 0 {
+		current := pq.peek(&frontier)
 
-		prev := fringes[k - 1]
-		for h in prev {
-			// iterate 6 axial directions
-			for dir in 0 ..< 6 {
-				d := AXIAL_DIRECTION_VECTORS[dir]
-				neighbor := Hex {
-					q = h.q + int(d[0]),
-					r = h.r + int(d[1]),
-				}
-				hex_id := pack_hex(neighbor)
+		for dir in 0 ..< 6 {
+			d := AXIAL_DIRECTION_VECTORS[dir]
+			neighbor := Hex {
+				q = current.q + int(d[0]),
+				r = current.r + int(d[1]),
+			}
+			hex_id := pack_hex(neighbor)
 
-				// out-of-bounds or blocked: skip if not present in map
-				if !(hex_id in game.level.hex_map.hmap) {
-					continue
-				}
+			new_cost :=
+				cost_so_far[pack_hex(current)] +
+				TERRAIN_DATA[game.level.hex_map.hmap[hex_id].terrain].movement_cost
 
-				// don't add it if the terrain is impassable
-				if !terrain_of(game.level.hex_map.hmap[hex_id].terrain).passable do continue
+			cost_with_new, ok := cost_so_far[hex_id]
 
-				// already visited: skip
-				if hex_id in visited {
-					continue
-				}
-
-				// mark visited and add to current frontier
-				visited[hex_id] = true
-				append(&fringes[k], neighbor)
+			if !ok || new_cost < cost_with_new {
+				cost_so_far[hex_id] = new_cost
+				priority := new_cost
+				pq.push(&frontier, neighbor)
+				came_from[hex_id] = current
 			}
 		}
 	}
+	return frontier
+}
 
-	for ring in fringes {
-		delete(ring)
-	}
-
-	result := make([]Hex_Id, len(visited), allocator)
-	i := 0
-	for id in visited {
-		result[i] = id
-		i += 1
-	}
-	return result
+pq_min_cmp :: proc(a, b: Hex_Id) -> bool {
+	return a < b
 }
 
 AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}

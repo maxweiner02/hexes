@@ -86,18 +86,7 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 draw_hex :: proc(hex: ^Hex) {
 	layout := game.level.hex_map.layout
 
-	color: ColorEx
-
-	switch hex.terrain {
-	case Terrain_Type.Lava:
-		color = RED
-	case Terrain_Type.Grass:
-		color = GREEN
-	case Terrain_Type.Desert:
-		color = YELLOW
-	case Terrain_Type.Snow:
-		color = WHITE
-	}
+	color := TERRAIN_DATA[hex.terrain].texture
 
 	hex_id := pack_hex(hex^)
 
@@ -137,21 +126,27 @@ draw_hex_map :: proc() {
 
 Hex_Id :: i64
 
-Terrain_Type :: enum int {
+Terrain_Type :: enum {
 	Lava,
 	Grass,
 	Desert,
-	Snow,
+	Wall,
+}
+
+TERRAIN_DATA := [Terrain_Type]Terrain {
+	.Lava = {movement_cost = 1, passable = false, transparent = true, texture = RED},
+	.Grass = {movement_cost = 1, passable = true, transparent = true, texture = GREEN},
+	.Desert = {movement_cost = 2, passable = true, transparent = true, texture = YELLOW},
+	.Wall = {movement_cost = 1, passable = false, transparent = false, texture = BLACK},
 }
 
 Terrain :: struct {
-	name:     string,
-	passable: bool,
+	movement_cost: int,
+	passable:      bool,
+	transparent:   bool,
+	texture:       ColorEx,
 }
 
-terrain_of :: proc(t: Terrain_Type) -> Terrain {
-	return game.level.terrains[cast(int)t]
-}
 
 Hex :: struct {
 	q, r:    int,
