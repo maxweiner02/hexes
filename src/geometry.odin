@@ -52,56 +52,112 @@ axial_linedraw :: proc(a: Hex, b: Hex, allocator := context.temp_allocator) -> [
 	return results[:]
 }
 
-// given a hex_id and a movement range, return an array of hex_ids that can be reached
-// uses a BFS (Breadth-First-Search) to look for ALL possible hexes within a movement range
-// TODO: Use Dijkstra's Algorithm to implement 'cost' values from terrain types
+// Dijkstra node: pairs a hex with its accumulated movement cost for the priority queue
+// this isn't strictly necessary but it made it easier to read
+Dijkstra_Node :: struct {
+	hex_id: Hex_Id,
+	// the accumulated movement cost along the path to reach this tile
+	cost:   int,
+}
+
+// lowest cost has highest priority and will always be at the front of the queue
+pq_node_less :: proc(a, b: Dijkstra_Node) -> bool {
+	return a.cost < b.cost
+}
+
+// Given a hex_id and a movement budget, return all reachable hex_ids using
+// Dijkstra's algorithm, paying attention to movement cost and passability.
+// Pardon the comments, this is took a while to wrap my head around
 get_accessible_hexes :: proc(
 	start_id: Hex_Id,
 	movement: int,
 	allocator := context.allocator,
 ) -> []Hex_Id {
-	start := game.level.hex_map.hmap[start_id]
-	frontier: pq.Priority_Queue(Hex)
-	pq.init(&frontier, pq_min_cmp, pq.default_swap_proc)
-	pq.push(&frontier, start)
 
-	came_from := make(map[Hex_Id]Hex)
-	came_from[start_id] = nil
+	// set up the priority queue to make sure that the lowest cost node/hex
+	// is always at the front of the queue and is processed first.
+	frontier: pq.Priority_Queue(Dijkstra_Node)
+	pq.init(&frontier, pq_node_less, pq.default_swap_proc(Dijkstra_Node))
+	defer pq.destroy(&frontier)
 
+	// start with the location the user is on; cost is zero because no movement
+	// is needed to get here
+	pq.push(&frontier, Dijkstra_Node{hex_id = start_id, cost = 0})
+
+	// records the lowest known cost to reach any visited hex, and also gives
+	// us an easy way to check if a hex has been visited before
 	cost_so_far := make(map[Hex_Id]int)
+	defer delete(cost_so_far)
 	cost_so_far[start_id] = 0
 
-	len := pq.len(&frontier)
-	for len > 0 {
-		current := pq.peek(&frontier)
+	// keep going until there is nothing left to explore (we have run out of
+	// movement points or we are surrounded by impassable options on every
+	// direction)
+	for pq.len(frontier) > 0 {
+		current := pq.pop(&frontier)
 
+		best_path, ok := cost_so_far[current.hex_id]
+
+		// if we already found a cheaper path to this hex, move on
+		// this is why the priority queue is useful.  the hex N can be present
+		// multiple times and by ensuring the current cheapest way to get hex N
+		// is processed first we can stop redundant work. brute force would
+		// work without the priority queue (and at most sizes the extra work is
+		// negligible) but Dijkstra's Algo calls for a priority queue conceptually
+		// and Odin happened to have one!
+		if ok && current.cost > best_path {
+			continue
+		}
+
+		current_hex := game.level.hex_map.hmap[current.hex_id]
+
+		// we get the hex coords for each of the six possible neighbors
 		for dir in 0 ..< 6 {
 			d := AXIAL_DIRECTION_VECTORS[dir]
-			neighbor := Hex {
-				q = current.q + int(d[0]),
-				r = current.r + int(d[1]),
+			neighbor_hex := Hex {
+				q = current_hex.q + int(d[0]),
+				r = current_hex.r + int(d[1]),
 			}
-			hex_id := pack_hex(neighbor)
+			neighbor_id := pack_hex(neighbor_hex)
 
-			new_cost :=
-				cost_so_far[pack_hex(current)] +
-				TERRAIN_DATA[game.level.hex_map.hmap[hex_id].terrain].movement_cost
+			// need to do this safety check since we aren't sure a given neighbor
+			// is out of bounds or not
+			neighbor_data, ok := game.level.hex_map.hmap[neighbor_id]
+			if !ok do continue
 
-			cost_with_new, ok := cost_so_far[hex_id]
+			// if not passable, move on
+			terrain := TERRAIN_DATA[neighbor_data.terrain]
+			if !terrain.passable do continue
 
-			if !ok || new_cost < cost_with_new {
-				cost_so_far[hex_id] = new_cost
-				priority := new_cost
-				pq.push(&frontier, neighbor)
-				came_from[hex_id] = current
+			// calc the movement cost before adding it to frontier
+			new_cost := current.cost + terrain.movement_cost
+
+			// will go over movement budget, move on
+			if new_cost > movement do continue
+
+			// check if we visited it, and if so what it would've cost previously
+			old_cost, visited := cost_so_far[neighbor_id]
+			// if we never visited it, add it to the map of costs and frontier queue
+			// if we have visited it and this new way is cheaper, set the cost in
+			// the cost map to the cheaper cost; also add it to the frontier queue to
+			// be processed
+			if !visited || new_cost < old_cost {
+				cost_so_far[neighbor_id] = new_cost
+				// add it to the queue to be processed
+				pq.push(&frontier, Dijkstra_Node{hex_id = neighbor_id, cost = new_cost})
 			}
 		}
 	}
-	return frontier
-}
 
-pq_min_cmp :: proc(a, b: Hex_Id) -> bool {
-	return a < b
+	// collect all reachable hexes (excluding the start position)
+	results := make([dynamic]Hex_Id, allocator)
+	for id in cost_so_far {
+		if id != start_id {
+			append(&results, id)
+		}
+	}
+
+	return results[:]
 }
 
 AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}
