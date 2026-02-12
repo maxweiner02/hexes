@@ -10,6 +10,18 @@
       "args": [],
       "console": "integratedTerminal",
       "preLaunchTask": "Build"
+    },
+    {
+      "name": "Odin (Linux / GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "MIDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Build"
     }
   ]
 }

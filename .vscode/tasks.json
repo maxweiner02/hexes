@@ -4,16 +4,22 @@
     {
       "label": "mkdir",
       "type": "shell",
-      "command": "cmd",
-      "args": [
-        "/C",
-        "if not exist .\\build mkdir .\\build"
-      ]
+      "command": "mkdir -p build",
+      "windows": {
+        "command": "cmd",
+        "args": [
+          "/C",
+          "if not exist .\\build mkdir .\\build"
+        ]
+      }
     },
     {
       "label": "build",
       "type": "shell",
-      "command": "odin build src -debug -out:build/debug.exe",
+      "command": "odin build src -debug -out:build/debug",
+      "windows": {
+        "command": "odin build src -debug -out:build/debug.exe"
+      },
       "group": "build"
     },
     {
