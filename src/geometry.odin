@@ -273,4 +273,34 @@ get_path_to_hex :: proc(
 	return path[:]
 }
 
+// given a hex_id and a direction, check if a neighbor exists in that direction
+has_neighbor :: proc(hex_id: Hex_Id, direction: Direction) -> bool {
+	current_hex, exists := game.level.hex_map.hmap[hex_id]
+
+	// the hex_id provided does not exist
+	if !exists do return false
+
+	direction_vec := AXIAL_DIRECTION_VECTORS[int(direction)]
+
+	neighbor := Hex {
+		q = current_hex.q + int(direction_vec.x),
+		r = current_hex.r + int(direction_vec.y),
+	}
+
+	neighbor_id := pack_hex(neighbor)
+
+	return neighbor_id in game.level.hex_map.hmap
+}
+
+// index 0 is the right edge and goes counter-clockwise
 AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}
+
+// semantic way to refer to a direction from a hex
+Direction :: enum {
+	Right,
+	Top_Right,
+	Top_Left,
+	Left,
+	Bottom_Left,
+	Bottom_Right,
+}

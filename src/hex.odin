@@ -47,6 +47,7 @@ hex_corner_offset :: proc(layout: Hex_Layout, corner: int) -> Vec2 {
 	return {cx, cy}
 }
 
+// Vec2 point at index 0 is the bottom-right corner and goes clockwise
 @(private = "file")
 hex_corners :: proc(layout: Hex_Layout, h: ^Hex) -> [6]Vec2 {
 	center := axial_to_pixel(layout, h)
