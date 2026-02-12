@@ -3,14 +3,19 @@ package hexes
 
 init_player :: proc() {
 	game.player = {
-		accessible_hex_ids = get_accessible_hexes(pack_axial(0, 0), 4),
+		accessible_hex_ids = nil,
 		location_hex_id    = pack_axial(0, 0),
 		hover_hex_id       = 0,
 		select_hex_id      = 0,
 		is_hovering        = false,
 		is_selecting       = false,
-		movement_range     = 4,
+		movement_range     = 8,
 	}
+
+	game.player.accessible_hex_ids = get_accessible_hexes(
+		pack_axial(0, 0),
+		game.player.movement_range,
+	)
 }
 
 update_player :: proc(dt: f32) {

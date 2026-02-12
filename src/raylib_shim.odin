@@ -32,6 +32,10 @@ draw_poly_lines :: proc(center: Vec2, sides: int, radius: f32, rotation: f32, co
 	raylib.DrawPolyLines(center, c.int(sides), radius, rotation, color)
 }
 
+draw_line :: proc(start: Vec2, end: Vec2, thickness: f32, color: ColorEx) {
+	raylib.DrawLineEx(start, end, thickness, color)
+}
+
 measure_text :: proc(
 	text: string,
 	fontSize: f32,

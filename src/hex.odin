@@ -113,14 +113,49 @@ draw_hex :: proc(hex: ^Hex) {
 	if hex_id == game.player.location_hex_id {
 		draw_poly(center, 4, 10, 0, PURPLE)
 	} else {
-		draw_coordinates(layout, hex, BLACK)
+		// draw_coordinates(layout, hex, BLACK)
 	}
+}
 
+draw_path :: proc(hex_ids: []Hex_Id) {
+	if len(hex_ids) < 2 do return
+
+	layout := game.level.hex_map.layout
+
+	for i in 0 ..< len(hex_ids) - 1 {
+		start_hex := game.level.hex_map.hmap[hex_ids[i]]
+		end_hex := game.level.hex_map.hmap[hex_ids[i + 1]]
+
+		start_center := axial_to_pixel(layout, &start_hex)
+		end_center := axial_to_pixel(layout, &end_hex)
+
+		draw_line(start_center, end_center, 6, PURPLE)
+	}
 }
 
 draw_hex_map :: proc() {
 	for _, &hex in game.level.hex_map.hmap {
 		draw_hex(&hex)
+	}
+
+	if game.player.is_hovering {
+		hovering_accessible: bool
+		for id in game.player.accessible_hex_ids {
+			if id == game.player.hover_hex_id {
+				hovering_accessible = true
+				break
+			}
+		}
+
+		if hovering_accessible {
+			draw_path(
+				get_path_to_hex(
+					game.player.location_hex_id,
+					game.player.hover_hex_id,
+					game.player.movement_range,
+				),
+			)
+		}
 	}
 }
 

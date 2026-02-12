@@ -2,6 +2,7 @@ package hexes
 
 import pq "core:container/priority_queue"
 import "core:math"
+import "core:slice"
 import "vendor:raylib"
 
 axial_subtract :: proc(a: Hex, b: Hex) -> raylib.Vector2 {
@@ -54,6 +55,7 @@ axial_linedraw :: proc(a: Hex, b: Hex, allocator := context.temp_allocator) -> [
 
 // Dijkstra node: pairs a hex with its accumulated movement cost for the priority queue
 // this isn't strictly necessary but it made it easier to read
+@(private = "file")
 Dijkstra_Node :: struct {
 	hex_id: Hex_Id,
 	// the accumulated movement cost along the path to reach this tile
@@ -61,7 +63,8 @@ Dijkstra_Node :: struct {
 }
 
 // lowest cost has highest priority and will always be at the front of the queue
-pq_node_less :: proc(a, b: Dijkstra_Node) -> bool {
+@(private = "file")
+dijkstra_node_less :: proc(a, b: Dijkstra_Node) -> bool {
 	return a.cost < b.cost
 }
 
@@ -77,7 +80,7 @@ get_accessible_hexes :: proc(
 	// set up the priority queue to make sure that the lowest cost node/hex
 	// is always at the front of the queue and is processed first.
 	frontier: pq.Priority_Queue(Dijkstra_Node)
-	pq.init(&frontier, pq_node_less, pq.default_swap_proc(Dijkstra_Node))
+	pq.init(&frontier, dijkstra_node_less, pq.default_swap_proc(Dijkstra_Node))
 	defer pq.destroy(&frontier)
 
 	// start with the location the user is on; cost is zero because no movement
@@ -158,6 +161,116 @@ get_accessible_hexes :: proc(
 	}
 
 	return results[:]
+}
+
+// the same as the Dijkstra_Node but with an added field for the heuristic
+@(private = "file")
+A_Star_Node :: struct {
+	hex_id:   Hex_Id,
+	cost:     int,
+	priority: int,
+}
+
+// instead of wanting the lowest cost, we want the lowest heuristic (distance to goal)
+@(private = "file")
+a_star_node_less :: proc(a: A_Star_Node, b: A_Star_Node) -> bool {
+	return a.priority < b.priority
+}
+
+// given a start, end, and movement cost, use A* algorithm to find a path
+// this is very similar to the Dijkstra Algorithm
+get_path_to_hex :: proc(
+	start_id: Hex_Id,
+	end_id: Hex_Id,
+	movement: int,
+	allocator := context.allocator,
+) -> []Hex_Id {
+	frontier: pq.Priority_Queue(A_Star_Node)
+	pq.init(&frontier, a_star_node_less, pq.default_swap_proc(A_Star_Node))
+	defer pq.destroy(&frontier)
+
+	cost_so_far := make(map[Hex_Id]int)
+	defer delete(cost_so_far)
+
+	// we need a came_from map for this so we can construct the best path
+	// taken instead of just returning ALL hexes in the cost_so_far map
+	came_from := make(map[Hex_Id]Hex_Id)
+	defer delete(came_from)
+
+	// get start and end hex for heuristics
+	start_hex := game.level.hex_map.hmap[start_id]
+	end_hex := game.level.hex_map.hmap[end_id]
+
+	// seed the queue and map
+	// NOTE: The heuristic is just the axial_distance from end_hex to
+	// the current_hex (which starts off as our start_hex)
+	pq.push(
+		&frontier,
+		A_Star_Node {
+			hex_id = start_id,
+			cost = 0,
+			priority = int(axial_distance(end_hex, start_hex)),
+		},
+	)
+	cost_so_far[start_id] = 0
+
+	for pq.len(frontier) > 0 {
+		current := pq.pop(&frontier)
+
+		// we made it!
+		if current.hex_id == end_id do break
+
+		best_path, ok := cost_so_far[current.hex_id]
+
+		if best_path < current.cost do continue
+
+		current_hex := game.level.hex_map.hmap[current.hex_id]
+
+		for direction in 0 ..< 6 {
+			dir := AXIAL_DIRECTION_VECTORS[direction]
+
+			neighbor := Hex {
+				q = current_hex.q + int(dir.x),
+				r = current_hex.r + int(dir.y),
+			}
+
+			neighbor_id := pack_hex(neighbor)
+			neighbor_hex, ok := game.level.hex_map.hmap[neighbor_id]
+
+			if !ok do continue
+
+			if !TERRAIN_DATA[neighbor_hex.terrain].passable do continue
+
+			new_cost := current.cost + TERRAIN_DATA[neighbor_hex.terrain].movement_cost
+
+			if new_cost > movement do continue
+
+			old_cost, visited := cost_so_far[neighbor_id]
+			if !visited || new_cost < old_cost {
+				cost_so_far[neighbor_id] = new_cost
+				priority := new_cost + int(axial_distance(end_hex, neighbor_hex))
+				pq.push(
+					&frontier,
+					A_Star_Node{hex_id = neighbor_id, cost = new_cost, priority = priority},
+				)
+				came_from[neighbor_id] = current.hex_id
+			}
+		}
+	}
+
+	path := make([dynamic]Hex_Id)
+	defer delete(path)
+	current_id := end_id
+	for current_id != start_id {
+		append(&path, current_id)
+		current_id = came_from[current_id]
+	}
+	// add the start_id to include the origin hex in the path
+	append(&path, current_id)
+
+	// we traverse through it backwards, so this puts it from start to end
+	slice.reverse(path[:])
+	return path[:]
 }
 
 AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}
