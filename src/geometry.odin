@@ -292,8 +292,77 @@ has_neighbor :: proc(hex_id: Hex_Id, direction: Direction) -> bool {
 	return neighbor_id in game.level.hex_map.hmap
 }
 
+// given a group of hex_ids, a hex_id, and a direction, check if the hex in that direction
+// is within the group
+has_neighbor_in_group :: proc(group: []Hex_Id, hex_id: Hex_Id, direction: Direction) -> bool {
+	current_hex, exists := game.level.hex_map.hmap[hex_id]
+
+	// the hex_id provided does not exist
+	if !exists do return false
+
+	direction_vec := AXIAL_DIRECTION_VECTORS[int(direction)]
+
+	neighbor := Hex {
+		q = current_hex.q + int(direction_vec.x),
+		r = current_hex.r + int(direction_vec.y),
+	}
+
+	neighbor_id := pack_hex(neighbor)
+
+	return slice.contains(group, neighbor_id)
+}
+
+// given a grouping of hex_ids, return any line segments that border hexes outside of the group
+// include_id is an optional extra hex to treat as part of the group (e.g. the player's position)
+get_poly_outline :: proc(
+	hex_ids: []Hex_Id,
+	include_id: Hex_Id = 0,
+	allocator := context.allocator,
+) -> [][2]Vec2 {
+	layout := game.level.hex_map.layout
+
+	// build the full group, optionally including the extra id
+	// need this so we can include the player's current position
+	group := make([dynamic]Hex_Id, 0, context.temp_allocator)
+	if include_id != 0 {
+		append(&group, include_id)
+	}
+	append(&group, ..hex_ids)
+	full_group := group[:]
+
+	segments := make([dynamic][2]Vec2)
+	defer delete(segments)
+
+	for hex_id in full_group {
+		// we are confident that we will always include real hexes, but just in case
+		hex, exists := game.level.hex_map.hmap[hex_id]
+		if !exists do continue
+
+		// get the corner vec2 of the hex
+		corners := hex_corners(layout, &hex)
+
+		// go in each direction and check if there is a neighbor outside the group
+		// or we are at a map edge
+		for dir in 0 ..< 6 {
+			if !has_neighbor_in_group(full_group, hex_id, Direction(dir)) {
+				// get the line segment (pair of Vec2) for that direction's face
+				corner_indices := DIRECTION_TO_VERTEX[dir]
+				append(&segments, [2]Vec2{corners[corner_indices[0]], corners[corner_indices[1]]})
+			}
+		}
+	}
+
+	// make the slice so we don't return a dynamic array
+	result := make([dynamic][2]Vec2, allocator)
+	append(&result, ..segments[:])
+	return result[:]
+}
+
 // index 0 is the right edge and goes counter-clockwise
 AXIAL_DIRECTION_VECTORS := [6]Vec2{{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}}
+
+// corner index pairs for each direction vector
+DIRECTION_TO_VERTEX := [6][2]int{{5, 0}, {4, 5}, {3, 4}, {2, 3}, {1, 2}, {0, 1}}
 
 // semantic way to refer to a direction from a hex
 Direction :: enum {

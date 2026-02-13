@@ -26,7 +26,6 @@ get_hex :: proc(m: ^Hex_Map, q: int, r: int) -> (^Hex, bool) {
 	return h, ok
 }
 
-@(private = "file")
 axial_to_pixel :: proc(layout: Hex_Layout, h: ^Hex) -> Vec2 {
 	// x = (√3 * q + √3/2 * r) * radius
 	x :=
@@ -48,7 +47,6 @@ hex_corner_offset :: proc(layout: Hex_Layout, corner: int) -> Vec2 {
 }
 
 // Vec2 point at index 0 is the bottom-right corner and goes clockwise
-@(private = "file")
 hex_corners :: proc(layout: Hex_Layout, h: ^Hex) -> [6]Vec2 {
 	center := axial_to_pixel(layout, h)
 	result: [6]Vec2
@@ -134,11 +132,26 @@ draw_path :: proc(hex_ids: []Hex_Id) {
 	}
 }
 
+draw_outline :: proc(segments: [][2]Vec2, thickness: f32, color: ColorEx) {
+	for seg in segments {
+		draw_line(seg[0], seg[1], thickness, color)
+	}
+}
+
 draw_hex_map :: proc() {
 	for _, &hex in game.level.hex_map.hmap {
 		draw_hex(&hex)
 	}
 
+	// this is the outline for the accessible hexes
+	outline := get_poly_outline(
+		game.player.accessible_hex_ids,
+		game.player.location_hex_id,
+		context.temp_allocator,
+	)
+	draw_outline(outline, 3, BLUE)
+
+	// this is the path using A* to the hovered hex
 	if game.player.is_hovering {
 		hovering_accessible: bool
 		for id in game.player.accessible_hex_ids {
