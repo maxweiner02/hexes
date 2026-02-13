@@ -26,6 +26,7 @@ get_hex :: proc(m: ^Hex_Map, q: int, r: int) -> (^Hex, bool) {
 	return h, ok
 }
 
+@(private = "file")
 axial_to_pixel :: proc(layout: Hex_Layout, h: ^Hex) -> Vec2 {
 	// x = (√3 * q + √3/2 * r) * radius
 	x :=
@@ -116,22 +117,32 @@ draw_hex :: proc(hex: ^Hex) {
 	}
 }
 
+@(private = "file")
 draw_path :: proc(hex_ids: []Hex_Id) {
 	if len(hex_ids) < 2 do return
 
 	layout := game.level.hex_map.layout
 
-	for i in 0 ..< len(hex_ids) - 1 {
-		start_hex := game.level.hex_map.hmap[hex_ids[i]]
-		end_hex := game.level.hex_map.hmap[hex_ids[i + 1]]
+	// Catmull-Rom splines don't pass through the first and last control points,
+	// so we duplicate them to ensure the curve reaches the endpoints
+	point_count := len(hex_ids) + 2
+	path_centers := make([]Vec2, point_count, context.temp_allocator)
 
-		start_center := axial_to_pixel(layout, &start_hex)
-		end_center := axial_to_pixel(layout, &end_hex)
-
-		draw_line(start_center, end_center, 6, PURPLE)
+	for i in 0 ..< len(hex_ids) {
+		hex := game.level.hex_map.hmap[hex_ids[i]]
+		center := axial_to_pixel(layout, &hex)
+		// need to make sure we leave the 0th index open for the duplicated center
+		path_centers[i + 1] = center
 	}
+
+	// duplicate first and last points to make sure the line goes through them
+	path_centers[0] = path_centers[1]
+	path_centers[point_count - 1] = path_centers[point_count - 2]
+
+	draw_spline(path_centers, point_count, 6, PURPLE)
 }
 
+@(private = "file")
 draw_outline :: proc(segments: [][2]Vec2, thickness: f32, color: ColorEx) {
 	for seg in segments {
 		draw_line(seg[0], seg[1], thickness, color)
@@ -195,7 +206,6 @@ Terrain :: struct {
 	transparent:   bool,
 	texture:       ColorEx,
 }
-
 
 Hex :: struct {
 	q, r:    int,

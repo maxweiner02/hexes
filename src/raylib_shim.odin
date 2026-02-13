@@ -36,6 +36,10 @@ draw_line :: proc(start: Vec2, end: Vec2, thickness: f32, color: ColorEx) {
 	raylib.DrawLineEx(start, end, thickness, color)
 }
 
+draw_spline :: proc(points: []Vec2, count: int, thickness: f32, color: ColorEx) {
+	raylib.DrawSplineCatmullRom(raw_data(points), c.int(count), thickness, color)
+}
+
 measure_text :: proc(
 	text: string,
 	fontSize: f32,

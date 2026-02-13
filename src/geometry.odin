@@ -316,7 +316,7 @@ has_neighbor_in_group :: proc(group: []Hex_Id, hex_id: Hex_Id, direction: Direct
 // include_id is an optional extra hex to treat as part of the group (e.g. the player's position)
 get_poly_outline :: proc(
 	hex_ids: []Hex_Id,
-	include_id: Hex_Id = 0,
+	include_id: Hex_Id = -1,
 	allocator := context.allocator,
 ) -> [][2]Vec2 {
 	layout := game.level.hex_map.layout
@@ -324,7 +324,7 @@ get_poly_outline :: proc(
 	// build the full group, optionally including the extra id
 	// need this so we can include the player's current position
 	group := make([dynamic]Hex_Id, 0, context.temp_allocator)
-	if include_id != 0 {
+	if include_id != -1 {
 		append(&group, include_id)
 	}
 	append(&group, ..hex_ids)
