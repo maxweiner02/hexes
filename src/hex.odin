@@ -20,13 +20,6 @@ pack_axial :: proc(q: int, r: int) -> Hex_Id {
 	return (i64(q) << 32) | i64(u32(r))
 }
 
-@(private = "file")
-get_hex :: proc(m: ^Hex_Map, q: int, r: int) -> (^Hex, bool) {
-	h, ok := &m^.hmap[pack_axial(q, r)]
-	return h, ok
-}
-
-@(private = "file")
 axial_to_pixel :: proc(layout: Hex_Layout, h: ^Hex) -> Vec2 {
 	// x = (√3 * q + √3/2 * r) * radius
 	x :=

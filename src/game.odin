@@ -43,8 +43,10 @@ init_level :: proc() {
 		}
 	}
 
-	// for now make sure the origin is not impassable
+	// for now make sure the origin is not impassable so we don't spawn in a wall
 	(&game.level.hex_map.hmap[pack_axial(0, 0)]).terrain = .Grass
+
+	compute_map_bounds()
 }
 
 shutdown_game :: proc() {
@@ -98,6 +100,7 @@ update_one_frame :: proc(dt: f32) {
 update_camera :: proc(dt: f32) {
 	move_camera(dt)
 	zoom_camera()
+	clamp_camera()
 }
 
 move_camera :: proc(dt: f32) {
@@ -130,9 +133,44 @@ zoom_camera :: proc() {
 	}
 }
 
+clamp_camera :: proc() {
+	allowed_min_q := game.level.bounds_q[0] + (WINDOW_WIDTH / (2 * game.camera.zoom))
+	allowed_max_q := game.level.bounds_q[1] - (WINDOW_WIDTH / (2 * game.camera.zoom))
+
+	allowed_min_r := game.level.bounds_r[0] + (WINDOW_HEIGHT / (2 * game.camera.zoom))
+	allowed_max_r := game.level.bounds_r[1] - (WINDOW_HEIGHT / (2 * game.camera.zoom))
+
+	game.camera.target = {
+		clamp(game.camera.target.x, allowed_min_q, allowed_max_q),
+		clamp(game.camera.target.y, allowed_min_r, allowed_max_r),
+	}
+}
+
+compute_map_bounds :: proc() {
+	hmap := game.level.hex_map.hmap
+	layout := game.level.hex_map.layout
+
+	// get the hexes at the polar edges of q and r (x,y)
+	min_q_hex, _ := hmap[pack_axial(-MAP_RADIUS, 0)]
+	max_q_hex, _ := hmap[pack_axial(MAP_RADIUS, 0)]
+	min_r_hex, _ := hmap[pack_axial(0, -MAP_RADIUS)]
+	max_r_hex, _ := hmap[pack_axial(0, MAP_RADIUS)]
+
+	// get their pixel coords
+	min_q := axial_to_pixel(layout, &min_q_hex).x - cast(f32)layout.radius
+	max_q := axial_to_pixel(layout, &max_q_hex).x + cast(f32)layout.radius
+	min_r := axial_to_pixel(layout, &min_r_hex).y - cast(f32)layout.radius
+	max_r := axial_to_pixel(layout, &max_r_hex).y + cast(f32)layout.radius
+
+	game.level.bounds_q = {min_q, max_q}
+	game.level.bounds_r = {min_r, max_r}
+}
+
 Level :: struct {
-	name:    string,
-	hex_map: Hex_Map,
+	name:     string,
+	hex_map:  Hex_Map,
+	bounds_q: Vec2,
+	bounds_r: Vec2,
 }
 
 Game :: struct {
