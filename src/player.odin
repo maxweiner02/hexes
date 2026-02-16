@@ -4,17 +4,24 @@ package hexes
 init_player :: proc() {
 	game.player = {
 		accessible_hex_ids = nil,
+		visible_hex_ids    = nil,
 		location_hex_id    = pack_axial(0, 0),
 		hover_hex_id       = 0,
 		select_hex_id      = 0,
 		is_hovering        = false,
 		is_selecting       = false,
 		movement_range     = 8,
+		sight_range        = 10,
 	}
 
 	game.player.accessible_hex_ids = get_accessible_hexes(
-		pack_axial(0, 0),
+		game.player.location_hex_id,
 		game.player.movement_range,
+	)
+
+	game.player.visible_hex_ids = get_visible_hexes(
+		game.player.location_hex_id,
+		game.player.sight_range,
 	)
 }
 
@@ -72,15 +79,22 @@ update_player_movement :: proc(dt: f32) {
 				game.player.location_hex_id,
 				game.player.movement_range,
 			)
+
+			game.player.visible_hex_ids = get_visible_hexes(
+				game.player.location_hex_id,
+				game.player.sight_range,
+			)
 		}
 	}
 }
 
 Player :: struct {
 	accessible_hex_ids:        []Hex_Id,
+	visible_hex_ids:           []Hex_Id,
 	location_hex_id:           Hex_Id,
 	hover_hex_id:              Hex_Id,
 	select_hex_id:             Hex_Id,
 	is_hovering, is_selecting: bool,
 	movement_range:            int,
+	sight_range:               int,
 }

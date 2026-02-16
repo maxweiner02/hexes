@@ -89,6 +89,7 @@ BLUE :: raylib.BLUE
 GREEN :: raylib.GREEN
 RED :: raylib.RED
 PURPLE :: raylib.PURPLE
+GRAY :: raylib.GRAY
 
 SELECTED_WHITE :: ColorEx{245, 245, 245, 165}
 REACHABLE_WHITE :: ColorEx{128, 128, 128, 200}

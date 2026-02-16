@@ -86,12 +86,16 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 draw_hex :: proc(hex: ^Hex) {
 	layout := game.level.hex_map.layout
 
-	color := TERRAIN_DATA[hex.terrain].texture
+	color := BLACK
 
 	hex_id := pack_hex(hex^)
 
 	if game.player.is_selecting && game.player.select_hex_id == hex_id {
-		color = BLUE
+		// right now don't color selected, but eventually put something here
+	}
+
+	for visible_id in game.player.visible_hex_ids {
+		if hex_id == visible_id do color = TERRAIN_DATA[hex.terrain].texture
 	}
 
 	center := axial_to_pixel(layout, hex)
@@ -197,7 +201,7 @@ TERRAIN_DATA := [Terrain_Type]Terrain {
 	.Lava = {movement_cost = 1, passable = false, transparent = true, texture = RED},
 	.Grass = {movement_cost = 1, passable = true, transparent = true, texture = GREEN},
 	.Desert = {movement_cost = 2, passable = true, transparent = true, texture = YELLOW},
-	.Wall = {movement_cost = 1, passable = false, transparent = false, texture = BLACK},
+	.Wall = {movement_cost = 1, passable = false, transparent = false, texture = GRAY},
 }
 
 Terrain :: struct {

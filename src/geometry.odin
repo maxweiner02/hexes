@@ -42,13 +42,20 @@ axial_lerp :: proc(a: Hex, b: Hex, dist: f32) -> Hex {
 	return axial_round(raylib.Vector2{q_frac, r_frac})
 }
 
-// given two Hexes, returns an array of all Hexes that form a line between
-axial_linedraw :: proc(a: Hex, b: Hex, allocator := context.temp_allocator) -> []Hex {
+// given two hex ids, returns an array of all Hexes that form a line between
+axial_linedraw :: proc(
+	id_a: Hex_Id,
+	id_b: Hex_Id,
+	allocator := context.temp_allocator,
+) -> []Hex_Id {
+	a, a_exists := game.level.hex_map.hmap[id_a]
+	b, b_exists := game.level.hex_map.hmap[id_b]
+	if !a_exists || !b_exists do return {}
 	dist := axial_distance(a, b)
-	results := make([dynamic]Hex, 0, allocator)
+	results := make([dynamic]Hex_Id, allocator)
 	defer delete(results)
 	for i in 0 ..= dist {
-		append(&results, axial_lerp(a, b, (1.0 / dist * i)))
+		append(&results, pack_hex(axial_lerp(a, b, (1.0 / dist * i))))
 	}
 	return results[:]
 }
@@ -177,7 +184,7 @@ a_star_node_less :: proc(a: A_Star_Node, b: A_Star_Node) -> bool {
 	return a.priority < b.priority
 }
 
-// given a start, end, and movement cost, use A* algorithm to find a path
+// given a start, end, and movement cost, use A* algorithm to find a path;
 // this is very similar to the Dijkstra Algorithm
 get_path_to_hex :: proc(
 	start_id: Hex_Id,
@@ -330,7 +337,7 @@ get_poly_outline :: proc(
 	append(&group, ..hex_ids)
 	full_group := group[:]
 
-	segments := make([dynamic][2]Vec2)
+	segments := make([dynamic][2]Vec2, allocator)
 	defer delete(segments)
 
 	for hex_id in full_group {
@@ -355,6 +362,61 @@ get_poly_outline :: proc(
 	// make the slice so we don't return a dynamic array
 	result := make([dynamic][2]Vec2, allocator)
 	append(&result, ..segments[:])
+	return result[:]
+}
+
+// given a location and a sight range, get all 'visible' hexes
+get_visible_hexes :: proc(
+	current_id: Hex_Id,
+	sight_range: int,
+	allocator := context.allocator,
+) -> []Hex_Id {
+	// first we need to get all hexes in the sight_range, ignoring movement_cost
+	// since sight doesn't take movement_cost into account
+	hexes_in_range := make([dynamic]Hex_Id, context.temp_allocator)
+	defer delete(hexes_in_range)
+
+	current_hex := game.level.hex_map.hmap[current_id]
+
+	for q in -sight_range ..= sight_range {
+		for r in max(
+			-sight_range,
+			-current_hex.q - sight_range,
+		) ..= min(sight_range, -current_hex.q + sight_range) {
+			potential_hex := Hex {
+				q = current_hex.q + q,
+				r = current_hex.r + r,
+			}
+			hex_id := pack_hex(potential_hex)
+			hex, ok := game.level.hex_map.hmap[hex_id]
+
+			if !ok do continue
+
+			append(&hexes_in_range, hex_id)
+		}
+	}
+
+	result := make([dynamic]Hex_Id, allocator)
+	defer delete(result)
+
+	//now hexes_in_range is filled, we can draw a line from the center to each hex
+	for hex_id in hexes_in_range {
+		line := axial_linedraw(current_id, hex_id)
+		hit_wall: bool
+		for line_id in line {
+			if !TERRAIN_DATA[game.level.hex_map.hmap[line_id].terrain].transparent {
+				hit_wall = true
+				// this will include the wall so you can tell what is stopping your vision
+				if line_id == hex_id {
+					append(&result, hex_id)
+				}
+				break
+			}
+		}
+		// didn't hit a wall in the line, so it is visible
+		if !hit_wall do append(&result, hex_id)
+	}
+
 	return result[:]
 }
 
