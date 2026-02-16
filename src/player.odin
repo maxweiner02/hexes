@@ -5,8 +5,10 @@ init_player :: proc() {
 	game.player = {
 		accessible_hex_ids = nil,
 		visible_hex_ids    = nil,
+		cached_path        = nil,
 		location_hex_id    = pack_axial(0, 0),
 		hover_hex_id       = 0,
+		prev_hover_hex_id  = 0,
 		select_hex_id      = 0,
 		is_hovering        = false,
 		is_selecting       = false,
@@ -43,6 +45,36 @@ update_player_hover :: proc(dt: f32) {
 	if ok {
 		game.player.hover_hex_id = pack_hex(hex^)
 	}
+
+	// recalculate cached path only when the hovered hex changes
+	hover_changed := game.player.hover_hex_id != game.player.prev_hover_hex_id
+	game.player.prev_hover_hex_id = game.player.hover_hex_id
+
+	if hover_changed && game.player.is_hovering {
+		if game.player.cached_path != nil {
+			delete(game.player.cached_path)
+			game.player.cached_path = nil
+		}
+
+		hovering_accessible: bool
+		for id in game.player.accessible_hex_ids {
+			if id == game.player.hover_hex_id {
+				hovering_accessible = true
+				break
+			}
+		}
+
+		if hovering_accessible {
+			game.player.cached_path = get_path_to_hex(
+				game.player.location_hex_id,
+				game.player.hover_hex_id,
+				game.player.movement_range,
+			)
+		}
+	} else if !game.player.is_hovering && game.player.cached_path != nil {
+		delete(game.player.cached_path)
+		game.player.cached_path = nil
+	}
 }
 
 @(private = "file")
@@ -71,6 +103,11 @@ update_player_movement :: proc(dt: f32) {
 		if can_move {
 			game.player.location_hex_id = game.player.hover_hex_id
 
+			if game.player.cached_path != nil {
+				delete(game.player.cached_path)
+				game.player.cached_path = nil
+			}
+
 			if game.player.accessible_hex_ids != nil {
 				delete(game.player.accessible_hex_ids)
 			}
@@ -79,6 +116,10 @@ update_player_movement :: proc(dt: f32) {
 				game.player.location_hex_id,
 				game.player.movement_range,
 			)
+
+			if game.player.visible_hex_ids != nil {
+				delete(game.player.visible_hex_ids)
+			}
 
 			game.player.visible_hex_ids = get_visible_hexes(
 				game.player.location_hex_id,
@@ -91,8 +132,10 @@ update_player_movement :: proc(dt: f32) {
 Player :: struct {
 	accessible_hex_ids:        []Hex_Id,
 	visible_hex_ids:           []Hex_Id,
+	cached_path:               []Hex_Id,
 	location_hex_id:           Hex_Id,
 	hover_hex_id:              Hex_Id,
+	prev_hover_hex_id:         Hex_Id,
 	select_hex_id:             Hex_Id,
 	is_hovering, is_selecting: bool,
 	movement_range:            int,

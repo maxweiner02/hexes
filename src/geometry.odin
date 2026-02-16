@@ -53,7 +53,6 @@ axial_linedraw :: proc(
 	if !a_exists || !b_exists do return {}
 	dist := axial_distance(a, b)
 	results := make([dynamic]Hex_Id, allocator)
-	defer delete(results)
 	for i in 0 ..= dist {
 		append(&results, pack_hex(axial_lerp(a, b, (1.0 / dist * i))))
 	}
@@ -265,8 +264,7 @@ get_path_to_hex :: proc(
 		}
 	}
 
-	path := make([dynamic]Hex_Id)
-	defer delete(path)
+	path := make([dynamic]Hex_Id, allocator)
 	current_id := end_id
 	for current_id != start_id {
 		append(&path, current_id)
@@ -397,7 +395,6 @@ get_visible_hexes :: proc(
 	}
 
 	result := make([dynamic]Hex_Id, allocator)
-	defer delete(result)
 
 	//now hexes_in_range is filled, we can draw a line from the center to each hex
 	for hex_id in hexes_in_range {

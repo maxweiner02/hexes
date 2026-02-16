@@ -52,6 +52,14 @@ shutdown_game :: proc() {
 		delete(game.player.accessible_hex_ids)
 	}
 
+	if game.player.visible_hex_ids != nil {
+		delete(game.player.visible_hex_ids)
+	}
+
+	if game.player.cached_path != nil {
+		delete(game.player.cached_path)
+	}
+
 	delete(game.level.hex_map.hmap)
 
 	free(game)

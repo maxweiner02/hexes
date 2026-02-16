@@ -167,24 +167,8 @@ draw_hex_map :: proc() {
 	draw_outline(outline, 3, BLUE)
 
 	// this is the path using A* to the hovered hex
-	if game.player.is_hovering {
-		hovering_accessible: bool
-		for id in game.player.accessible_hex_ids {
-			if id == game.player.hover_hex_id {
-				hovering_accessible = true
-				break
-			}
-		}
-
-		if hovering_accessible {
-			draw_path(
-				get_path_to_hex(
-					game.player.location_hex_id,
-					game.player.hover_hex_id,
-					game.player.movement_range,
-				),
-			)
-		}
+	if game.player.is_hovering && game.player.cached_path != nil {
+		draw_path(game.player.cached_path)
 	}
 }
 
