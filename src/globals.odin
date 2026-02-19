@@ -13,7 +13,7 @@ CAMERA_ZOOM_MAX :: 7.0
 
 FPS :: 60
 
-MAP_RADIUS :: 20
+MAP_RADIUS :: 10
 
 Vec2 :: [2]f32
 

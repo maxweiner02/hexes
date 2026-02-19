@@ -135,10 +135,10 @@ get_accessible_hexes :: proc(
 			if !ok do continue
 
 			// if not passable, move on
-			terrain := TERRAIN_DATA[neighbor_data.terrain]
-			if !terrain.passable do continue
+			if .Passable not_in neighbor_data.properties do continue
 
 			// calc the movement cost before adding it to frontier
+			terrain := TERRAIN_DATA[neighbor_data.terrain]
 			new_cost := current.cost + terrain.movement_cost
 
 			// will go over movement budget, move on
@@ -245,7 +245,7 @@ get_path_to_hex :: proc(
 
 			if !ok do continue
 
-			if !TERRAIN_DATA[neighbor_hex.terrain].passable do continue
+			if .Passable not_in neighbor_hex.properties do continue
 
 			new_cost := current.cost + TERRAIN_DATA[neighbor_hex.terrain].movement_cost
 
@@ -363,58 +363,162 @@ get_poly_outline :: proc(
 	return result[:]
 }
 
-// given a location and a sight range, get all 'visible' hexes
 get_visible_hexes :: proc(
 	current_id: Hex_Id,
 	sight_range: int,
 	allocator := context.allocator,
 ) -> []Hex_Id {
-	// first we need to get all hexes in the sight_range, ignoring movement_cost
-	// since sight doesn't take movement_cost into account
-	hexes_in_range := make([dynamic]Hex_Id, context.temp_allocator)
-	defer delete(hexes_in_range)
+	results := make([dynamic]Hex_Id, allocator)
+	append(&results, current_id)
 
-	current_hex := game.level.hex_map.hmap[current_id]
-
-	for q in -sight_range ..= sight_range {
-		for r in max(
-			-sight_range,
-			-current_hex.q - sight_range,
-		) ..= min(sight_range, -current_hex.q + sight_range) {
-			potential_hex := Hex {
-				q = current_hex.q + q,
-				r = current_hex.r + r,
-			}
-			hex_id := pack_hex(potential_hex)
-			hex, ok := game.level.hex_map.hmap[hex_id]
-
-			if !ok do continue
-
-			append(&hexes_in_range, hex_id)
-		}
+	// scan each of the 6 sextants independently and build the results array
+	for dir in 0 ..< 6 {
+		scan_sextant(current_id, Direction(dir), sight_range, &results)
 	}
 
-	result := make([dynamic]Hex_Id, allocator)
+	return results[:]
+}
 
-	//now hexes_in_range is filled, we can draw a line from the center to each hex
-	for hex_id in hexes_in_range {
-		line := axial_linedraw(current_id, hex_id)
-		hit_wall: bool
-		for line_id in line {
-			if !TERRAIN_DATA[game.level.hex_map.hmap[line_id].terrain].transparent {
-				hit_wall = true
-				// this will include the wall so you can tell what is stopping your vision
-				if line_id == hex_id {
-					append(&result, hex_id)
+@(private = "file")
+// go ring-by-ring outwards checking if there are any walls to cast a shadow and then calculating
+// which hexes are hidden by any shadows in a given 60 degree sextant
+scan_sextant :: proc(
+	center_id: Hex_Id,
+	sextant_index: Direction,
+	sight_range: int,
+	results: ^[dynamic]Hex_Id,
+) {
+	shadows := make([dynamic][2]f32, context.temp_allocator)
+
+	// loop through 'sight_range' number of rings, ignoring ring 0 (current position)
+	for ring in 1 ..= sight_range {
+		// each sextant will have 'ring' number of hexes and is zero-indexed
+		for pos in 0 ..< ring {
+			// ex: 0th
+			hex_start_slope := f32(pos) / f32(ring)
+			// ex: 0th (first) position on 2nd ring = 0.5 (since that hexes range ends halfway through the arc)
+			hex_end_slope := f32(pos + 1) / f32(ring)
+
+			hex_id := axial_from_sextant(center_id, sextant_index, ring, pos)
+
+			hex, exists := game.level.hex_map.hmap[hex_id]
+
+			if !exists do continue
+
+			// if fully shadowed by a closer wall, skip it since casting another shadow would be redundant
+			// and it isn't visible so it shouldn't be appended to the results
+			if is_shadowed(hex_start_slope, hex_end_slope, &shadows) do continue
+
+			// it's visible (not covered by a closer shadow), so add it to the results
+			append(results, hex_id)
+			// update the .Discovered flag so it is no longer fully blacked out
+			if .Discovered not_in hex.state {
+				(&game.level.hex_map.hmap[hex_id]).state += {.Discovered}
+			}
+
+			// if it's not transparent it will cast a shadow for hexes behind it, so add the range
+			// it covers to the shadows array
+			if .Transparent not_in hex.properties {
+				add_shadow(&shadows, hex_start_slope, hex_end_slope)
+
+				// early exit: if the entire sextant is shadowed, stop processing further rings
+				// this will happen if the only hex in the first ring is not transparent and saves
+				// us from continuing through the sextant
+				// TODO: add a more robust early exit that handles subsequent rows being wholly
+				// made up of non-transparent hexes
+				if len(shadows) == 1 && shadows[0][0] <= 0.0 && shadows[0][1] >= 1.0 {
+					return
 				}
-				break
 			}
 		}
-		// didn't hit a wall in the line, so it is visible
-		if !hit_wall do append(&result, hex_id)
+	}
+}
+
+@(private = "file")
+// given a center, sextant index (Direction), ring number, and position in the ring, return a hex_id
+axial_from_sextant :: proc(
+	center_id: Hex_Id,
+	sextant_index: Direction,
+	ring: int,
+	pos_in_ring: int,
+) -> Hex_Id {
+	// this vector moves us 'out' from the center to form the primary edge
+	// of the fan
+	primary := AXIAL_DIRECTION_VECTORS[int(sextant_index)]
+	// this is the tangential step that happens after we make the primary move
+	// we must move 120 degrees counter-clockwise from the primary vector to
+	// ensure that we move along the 'arc' of the 60 degree sextant
+	step := AXIAL_DIRECTION_VECTORS[(int(sextant_index) + 2) % 6]
+
+	// current position
+	center_hex := game.level.hex_map.hmap[center_id]
+
+	// ex: from 0,0 in sextant 0, ring 2, pos 1 (2nd position but zero indexed)
+	// primary vector = {1, 0} | step vector = {0, -1}
+	// q = 0 + (2 * 1) + (1 * 0) -> q = 2
+	q := center_hex.q + (ring * int(primary.x)) + (pos_in_ring * int(step.x))
+	// r = 0 + (2 * 0) + (1 * -1) -> r = -1
+	r := center_hex.r + (ring * int(primary.y)) + (pos_in_ring * int(step.y))
+
+	return pack_axial(q, r)
+}
+
+@(private = "file")
+// add a new shadow f32 pair, ensuring proper low -> high ordering and merging overlapping ranges
+add_shadow :: proc(shadows: ^[dynamic][2]f32, new_start: f32, new_end: f32) {
+	start := new_start
+	end := new_end
+
+	// find the insertion point and merge with any overlapping intervals
+	i := 0
+	for i < len(shadows) {
+		shadow := shadows[i]
+
+		// this shadow ends before the new shadow starts: skip it
+		if shadow[1] < start {
+			i += 1
+			continue
+		}
+
+		// this shadow starts after the new shadow ends: stop, found insertion point
+		if shadow[0] > end do break
+
+		// overlapping - merge by extending the new range and remove the old interval
+		start = min(start, shadow[0])
+		end = max(end, shadow[1])
+		ordered_remove(shadows, i)
 	}
 
-	return result[:]
+	// insert the merged interval at position i
+	inject_at(shadows, i, [2]f32{start, end})
+}
+
+@(private = "file")
+// given a start and end slope, check if it is within any shadow slope ranges
+is_shadowed :: proc(hex_start_slope: f32, hex_end_slope: f32, shadows: ^[dynamic][2]f32) -> bool {
+	uncovered_start := hex_start_slope
+
+	for shadow in shadows {
+		// current shadow starts past the area we are checking so the area cannot be shadowed
+		// we are confident of this because shadows are ordered low -> high so no subsequent
+		// shadow will start earlier than the current one, and all previous ones have already been
+		// checked and passed through the loop without returning/breaking
+		if shadow[0] > uncovered_start do break
+
+		// this shadow covers some of the remaining range so we move the start
+		// of the 'uncovered area' to the end of the current shadow range
+		if shadow[1] > uncovered_start {
+			uncovered_start = shadow[1]
+		}
+
+		// the start of the 'uncovered area' is past the end of the range we are
+		// checking so we are now confident that this range is shadowed
+		if uncovered_start >= hex_end_slope do return true
+	}
+
+	// assuming we have broken out of the loop, the area between the start and end slope
+	// are uncovered
+	return false
 }
 
 // index 0 is the right edge and goes counter-clockwise

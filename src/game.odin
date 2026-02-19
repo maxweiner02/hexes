@@ -39,12 +39,25 @@ init_level :: proc() {
 
 			(s >= -MAP_RADIUS && s <= MAP_RADIUS) or_continue
 
-			add_hex(&game.level.hex_map, Hex{q = q, r = r, terrain = rand.choice(all_terrains[:])})
+			new_hex := Hex {
+				q         = q,
+				r         = r,
+				terrain   = rand.choice(all_terrains[:]),
+				structure = .None,
+			}
+
+			// for now make sure the origin is not impassable so we don't spawn in a wall
+			if new_hex.q == 0 && new_hex.r == 0 do new_hex.terrain = .Grass
+
+			if new_hex.q == 1 && new_hex.r == 1 {
+				new_hex.terrain = .Grass
+				new_hex.structure = .Fence
+			}
+
+			resolve_properties(&new_hex)
+			add_hex(&game.level.hex_map, new_hex)
 		}
 	}
-
-	// for now make sure the origin is not impassable so we don't spawn in a wall
-	(&game.level.hex_map.hmap[pack_axial(0, 0)]).terrain = .Grass
 
 	compute_map_bounds()
 }

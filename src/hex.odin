@@ -79,21 +79,36 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 draw_hex :: proc(hex: ^Hex) {
 	layout := game.level.hex_map.layout
 
-	color := BLACK
-
 	hex_id := pack_hex(hex^)
+
+	center := axial_to_pixel(layout, hex)
+
+	draw_poly(center, 6, f32(layout.radius), 30, TERRAIN_DATA[hex.terrain].texture)
+
+	if hex.structure == .Fence {
+		draw_poly(center, 4, 20, 45, BROWN)
+	}
+
+	// determine visibility
+	is_visible := false
+	for visible_id in game.player.visible_hex_ids {
+		if hex_id == visible_id {
+			is_visible = true
+			break
+		}
+	}
+
+	if !is_visible {
+		if .Discovered in game.level.hex_map.hmap[hex_id].state {
+			draw_poly(center, 6, f32(layout.radius), 30, DISCOVERED_GREY)
+		} else {
+			draw_poly(center, 6, f32(layout.radius), 30, BLACK)
+		}
+	}
 
 	if game.player.is_selecting && game.player.select_hex_id == hex_id {
 		// right now don't color selected, but eventually put something here
 	}
-
-	for visible_id in game.player.visible_hex_ids {
-		if hex_id == visible_id do color = TERRAIN_DATA[hex.terrain].texture
-	}
-
-	center := axial_to_pixel(layout, hex)
-
-	draw_poly(center, 6, f32(layout.radius), 30, color)
 
 	if game.player.is_hovering && game.player.hover_hex_id == hex_id {
 		draw_poly(center, 6, f32(layout.radius), 30, SELECTED_WHITE)
@@ -163,9 +178,55 @@ draw_hex_map :: proc() {
 	if game.player.is_hovering && game.player.cached_path != nil {
 		draw_path(game.player.cached_path)
 	}
+
+	// LoS Testing
+	// {
+	// 	cur_center := axial_to_pixel(
+	// 		game.level.hex_map.layout,
+	// 		&game.level.hex_map.hmap[game.player.location_hex_id],
+	// 	)
+	// 	hover_center := axial_to_pixel(
+	// 		game.level.hex_map.layout,
+	// 		&game.level.hex_map.hmap[game.player.hover_hex_id],
+	// 	)
+	// 	draw_line(cur_center, hover_center, 2, BLUE)
+	// }
+}
+
+// Take a pointer to a hex and update its properties based on its terrain and structure
+resolve_properties :: proc(hex: ^Hex) {
+	terrain_properties := TERRAIN_DATA[hex.terrain].properties
+	structure_properties := STRUCTURE_DATA[hex.structure].properties
+
+	// use a bit_set 'intersect' operation
+	hex.properties = terrain_properties & structure_properties
 }
 
 Hex_Id :: i64
+
+Hex_Map :: struct {
+	hmap:   map[Hex_Id]Hex,
+	layout: Hex_Layout,
+}
+
+Hex_Layout :: struct {
+	radius: int,
+	origin: Vec2,
+}
+
+Hex :: struct {
+	q, r:       int,
+	terrain:    Terrain_Type,
+	structure:  Structure_Type,
+	properties: Properties,
+	state:      State,
+}
+
+Terrain :: struct {
+	movement_cost: int,
+	properties:    Properties,
+	texture:       ColorEx,
+}
 
 Terrain_Type :: enum {
 	Lava,
@@ -175,30 +236,39 @@ Terrain_Type :: enum {
 }
 
 TERRAIN_DATA := [Terrain_Type]Terrain {
-	.Lava = {movement_cost = 1, passable = false, transparent = true, texture = RED},
-	.Grass = {movement_cost = 1, passable = true, transparent = true, texture = GREEN},
-	.Desert = {movement_cost = 2, passable = true, transparent = true, texture = YELLOW},
-	.Wall = {movement_cost = 1, passable = false, transparent = false, texture = GRAY},
+	.Lava = {movement_cost = 1, properties = {.Transparent}, texture = RED},
+	.Grass = {movement_cost = 1, properties = {.Passable, .Transparent}, texture = GREEN},
+	.Desert = {movement_cost = 2, properties = {.Passable, .Transparent}, texture = YELLOW},
+	.Wall = {movement_cost = 1, properties = {}, texture = GRAY},
 }
 
-Terrain :: struct {
+Structure :: struct {
 	movement_cost: int,
-	passable:      bool,
-	transparent:   bool,
+	properties:    Properties,
 	texture:       ColorEx,
 }
 
-Hex :: struct {
-	q, r:    int,
-	terrain: Terrain_Type,
+Structure_Type :: enum {
+	None,
+	Fence,
 }
 
-Hex_Layout :: struct {
-	radius: int,
-	origin: Vec2,
+STRUCTURE_DATA := [Structure_Type]Structure {
+	.None = {movement_cost = 0, properties = {.Transparent, .Passable}, texture = TRANSPARENT},
+	.Fence = {movement_cost = 1, properties = {.Transparent}, texture = BROWN},
 }
 
-Hex_Map :: struct {
-	hmap:   map[Hex_Id]Hex,
-	layout: Hex_Layout,
+Properties :: bit_set[Property_Flags;u32]
+
+// Property Flags are dependent on terrain/structure/etc and need to be recalculated often
+Property_Flags :: enum {
+	Passable,
+	Transparent,
+}
+
+State :: bit_set[State_Flags;u32]
+
+// State Flags are attatched to the hex and is not affected by terrain/structure/etc
+State_Flags :: enum {
+	Discovered,
 }

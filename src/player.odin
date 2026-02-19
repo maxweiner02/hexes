@@ -12,8 +12,8 @@ init_player :: proc() {
 		select_hex_id      = 0,
 		is_hovering        = false,
 		is_selecting       = false,
-		movement_range     = 8,
-		sight_range        = 10,
+		movement_range     = 6,
+		sight_range        = 6,
 	}
 
 	game.player.accessible_hex_ids = get_accessible_hexes(
