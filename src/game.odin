@@ -2,6 +2,7 @@ package hexes
 
 import "core:math/linalg"
 import "core:math/rand"
+import mu "vendor:microui"
 
 game: ^Game
 
@@ -48,6 +49,7 @@ init_level :: proc() {
 
 			// for now make sure the origin is not impassable so we don't spawn in a wall
 			if new_hex.q == 0 && new_hex.r == 0 do new_hex.terrain = .Grass
+			if new_hex.q == 2 && new_hex.r == -2 do new_hex.terrain = .Grass
 
 			if new_hex.q == 1 && new_hex.r == 1 {
 				new_hex.terrain = .Grass
@@ -63,19 +65,23 @@ init_level :: proc() {
 }
 
 shutdown_game :: proc() {
-	if game.player.accessible_hex_ids != nil {
-		delete(game.player.accessible_hex_ids)
+	for pawn in game.player.pawns {
+		if pawn == nil do continue
+		if pawn.accessible_hex_ids != nil do delete(pawn.accessible_hex_ids)
+		if pawn.visible_hex_ids != nil do delete(pawn.visible_hex_ids)
+		free(pawn)
 	}
+	delete(game.player.pawns)
 
 	if game.player.visible_hex_ids != nil {
 		delete(game.player.visible_hex_ids)
 	}
 
-	if game.player.cached_path != nil {
-		delete(game.player.cached_path)
-	}
+	if game.player.cached_path != nil do delete(game.player.cached_path)
 
 	delete(game.level.hex_map.hmap)
+
+	free(game.player.ui_context)
 
 	free(game)
 }
@@ -101,8 +107,44 @@ draw :: proc() {
 		end_2d_mode()
 	}
 
+	// only draw the box if the player is hovering
+	draw_ui()
 
 	end_drawing()
+}
+
+draw_ui :: proc() {
+	ui_context := game.player.ui_context
+
+	cmd: ^mu.Command = nil
+
+	// this tells micro_ui how to actually execute each command type
+	for mu.next_command(ui_context, &cmd) {
+		#partial switch &var in cmd.variant {
+		case ^mu.Command_Rect:
+			draw_rectangle(
+				var.rect.x,
+				var.rect.y,
+				var.rect.w,
+				var.rect.h,
+				ColorEx{var.color.r, var.color.g, var.color.b, var.color.a},
+			)
+		case ^mu.Command_Text:
+			draw_text(
+				var.str,
+				{f32(var.pos.x), f32(var.pos.y)},
+				14,
+				1,
+				ColorEx{var.color.r, var.color.g, var.color.b, var.color.a},
+			)
+		}
+	}
+
+	mu.begin(ui_context)
+
+	update_hovered_hex_window(ui_context)
+
+	mu.end(ui_context)
 }
 
 update_one_frame :: proc(dt: f32) {

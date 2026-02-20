@@ -68,7 +68,7 @@ draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
 	center := axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
 
-	pos := measure_text(coords, 10, 1)
+	pos := measure_text_ex(coords, 10, 1)
 	x := f32(center.x) - pos.x / 2
 	y := f32(center.y) - 6
 
@@ -114,16 +114,19 @@ draw_hex :: proc(hex: ^Hex) {
 		draw_poly(center, 6, f32(layout.radius), 30, SELECTED_WHITE)
 	}
 
-	for reachable_id in game.player.accessible_hex_ids {
-		if hex_id == reachable_id {
-			draw_poly(center, 6, f32(layout.radius), 30, REACHABLE_WHITE)
+	if game.player.select_pawn != nil {
+		for reachable_id in game.player.select_pawn.accessible_hex_ids {
+			if hex_id == reachable_id {
+				draw_poly(center, 6, f32(layout.radius), 30, REACHABLE_WHITE)
+			}
 		}
 	}
 
 	draw_poly_lines(center, 6, f32(layout.radius), 30, BLACK)
 
-	if hex_id == game.player.location_hex_id {
-		draw_poly(center, 4, 10, 0, PURPLE)
+	pawn, ok := get_pawn_for_hex(hex_id)
+	if ok {
+		draw_poly(center, 4, 10, 0, pawn.texture)
 	} else {
 		// draw_coordinates(layout, hex, BLACK)
 	}
@@ -166,13 +169,15 @@ draw_hex_map :: proc() {
 		draw_hex(&hex)
 	}
 
-	// this is the outline for the accessible hexes
-	outline := get_poly_outline(
-		game.player.accessible_hex_ids,
-		game.player.location_hex_id,
-		context.temp_allocator,
-	)
-	draw_outline(outline, 3, BLUE)
+	if game.player.select_pawn != nil {
+		// this is the outline for the accessible hexes
+		outline := get_poly_outline(
+			game.player.select_pawn.accessible_hex_ids,
+			game.player.select_pawn.location_hex_id,
+			context.temp_allocator,
+		)
+		draw_outline(outline, 3, game.player.select_pawn.texture)
+	}
 
 	// this is the path using A* to the hovered hex
 	if game.player.is_hovering && game.player.cached_path != nil {

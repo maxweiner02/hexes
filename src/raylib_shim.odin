@@ -24,6 +24,8 @@ end_drawing :: raylib.EndDrawing
 
 clear_background :: raylib.ClearBackground
 
+get_font_default :: raylib.GetFontDefault
+
 draw_poly :: proc(center: Vec2, sides: int, radius: f32, rotation: f32, color: ColorEx) {
 	raylib.DrawPoly(center, c.int(sides), radius, rotation, color)
 }
@@ -40,7 +42,16 @@ draw_spline :: proc(points: []Vec2, count: int, thickness: f32, color: ColorEx) 
 	raylib.DrawSplineCatmullRom(raw_data(points), c.int(count), thickness, color)
 }
 
-measure_text :: proc(
+draw_rectangle :: proc(pos_x, pos_y, width, height: i32, color: ColorEx) {
+	raylib.DrawRectangle(pos_x, pos_y, width, height, color)
+}
+
+measure_text :: proc(text: string, fontSize: i32, allocator := context.temp_allocator) -> i32 {
+	ctext := strings.clone_to_cstring(text, allocator)
+	return raylib.MeasureText(ctext, fontSize)
+}
+
+measure_text_ex :: proc(
 	text: string,
 	fontSize: f32,
 	spacing: f32,
@@ -91,6 +102,7 @@ RED :: raylib.RED
 PURPLE :: raylib.PURPLE
 GRAY :: raylib.GRAY
 BROWN :: raylib.BROWN
+PINK :: raylib.PINK
 
 TRANSPARENT :: ColorEx{0, 0, 0, 0}
 SELECTED_WHITE :: ColorEx{245, 245, 245, 165}

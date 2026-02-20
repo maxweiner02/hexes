@@ -137,6 +137,9 @@ get_accessible_hexes :: proc(
 			// if not passable, move on
 			if .Passable not_in neighbor_data.properties do continue
 
+			// if its not discovered, move on
+			if .Discovered not_in neighbor_data.state do continue
+
 			// calc the movement cost before adding it to frontier
 			terrain := TERRAIN_DATA[neighbor_data.terrain]
 			new_cost := current.cost + terrain.movement_cost
@@ -519,6 +522,25 @@ is_shadowed :: proc(hex_start_slope: f32, hex_end_slope: f32, shadows: ^[dynamic
 	// assuming we have broken out of the loop, the area between the start and end slope
 	// are uncovered
 	return false
+}
+
+// given an array of pawns, return all visible hexes with no duplicates
+resolve_all_visible_hexes :: proc(pawns: []^Pawn, allocator := context.allocator) -> []Hex_Id {
+	result := make([dynamic]Hex_Id, allocator)
+
+	visible_id_set := make(map[Hex_Id]bool, context.temp_allocator)
+
+	for pawn in pawns {
+		for id in pawn.visible_hex_ids {
+			// only do stuff if its not in the set already
+			if !visible_id_set[id] {
+				visible_id_set[id] = true
+				append(&result, id)
+			}
+		}
+	}
+
+	return result[:]
 }
 
 // index 0 is the right edge and goes counter-clockwise
