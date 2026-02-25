@@ -65,14 +65,15 @@ get_hex_for_vec :: proc(hmap: ^Hex_Map, pos: Vec2) -> (^Hex, bool) {
 
 @(private = "file")
 draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
+	font := get_raylib_font_from_ctx(game.ui_context)
 	center := axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
 
-	pos := measure_text_ex(coords, 10, 1)
+	pos := measure_text_ex(font, coords, 10, 1)
 	x := f32(center.x) - pos.x / 2
 	y := f32(center.y) - 6
 
-	draw_text(coords, {x, y}, 10, 1, color)
+	draw_text(font, coords, {x, y}, 10, 1, color)
 }
 
 @(private = "file")
@@ -123,13 +124,6 @@ draw_hex :: proc(hex: ^Hex) {
 	}
 
 	draw_poly_lines(center, 6, f32(layout.radius), 30, BLACK)
-
-	pawn, ok := get_pawn_for_hex(hex_id)
-	if ok {
-		draw_poly(center, 4, 10, 0, pawn.texture)
-	} else {
-		// draw_coordinates(layout, hex, BLACK)
-	}
 }
 
 @(private = "file")
@@ -154,7 +148,7 @@ draw_path :: proc(hex_ids: []Hex_Id) {
 	path_centers[0] = path_centers[1]
 	path_centers[point_count - 1] = path_centers[point_count - 2]
 
-	draw_spline(path_centers, point_count, 6, PURPLE)
+	draw_spline(path_centers, point_count, 6, game.player.select_pawn.texture)
 }
 
 @(private = "file")
@@ -169,18 +163,24 @@ draw_hex_map :: proc() {
 		draw_hex(&hex)
 	}
 
+	for pawn in game.player.pawns {
+		draw_pawn(pawn)
+	}
+
 	if game.player.select_pawn != nil {
 		// this is the outline for the accessible hexes
 		outline := get_poly_outline(
 			game.player.select_pawn.accessible_hex_ids,
-			game.player.select_pawn.location_hex_id,
+			game.player.select_pawn.position_hex_id,
 			context.temp_allocator,
 		)
 		draw_outline(outline, 3, game.player.select_pawn.texture)
 	}
 
 	// this is the path using A* to the hovered hex
-	if game.player.is_hovering && game.player.cached_path != nil {
+	if game.player.is_hovering &&
+	   game.player.cached_path != nil &&
+	   game.turn_state_ctrl.state == .PlayerTurn {
 		draw_path(game.player.cached_path)
 	}
 
@@ -188,7 +188,7 @@ draw_hex_map :: proc() {
 	// {
 	// 	cur_center := axial_to_pixel(
 	// 		game.level.hex_map.layout,
-	// 		&game.level.hex_map.hmap[game.player.location_hex_id],
+	// 		&game.level.hex_map.hmap[game.player.position_hex_id],
 	// 	)
 	// 	hover_center := axial_to_pixel(
 	// 		game.level.hex_map.layout,

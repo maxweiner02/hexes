@@ -14,6 +14,11 @@ init_game :: proc() {
 		offset = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2},
 		zoom   = 1.5,
 	}
+
+	game.ui_context = init_mu()
+
+	game.turn_state_ctrl = new(Turn_State_Controller)
+	game.turn_state_ctrl.state = .StartEncounter
 }
 
 init_level :: proc() {
@@ -81,7 +86,11 @@ shutdown_game :: proc() {
 
 	delete(game.level.hex_map.hmap)
 
-	free(game.player.ui_context)
+	free(game.ui_context.style.font)
+	free(game.ui_context.style)
+	free(game.ui_context)
+
+	free(game.turn_state_ctrl)
 
 	free(game)
 }
@@ -107,49 +116,28 @@ draw :: proc() {
 		end_2d_mode()
 	}
 
-	// only draw the box if the player is hovering
 	draw_ui()
 
 	end_drawing()
 }
 
 draw_ui :: proc() {
-	ui_context := game.player.ui_context
-
-	cmd: ^mu.Command = nil
-
-	// this tells micro_ui how to actually execute each command type
-	for mu.next_command(ui_context, &cmd) {
-		#partial switch &var in cmd.variant {
-		case ^mu.Command_Rect:
-			draw_rectangle(
-				var.rect.x,
-				var.rect.y,
-				var.rect.w,
-				var.rect.h,
-				ColorEx{var.color.r, var.color.g, var.color.b, var.color.a},
-			)
-		case ^mu.Command_Text:
-			draw_text(
-				var.str,
-				{f32(var.pos.x), f32(var.pos.y)},
-				14,
-				1,
-				ColorEx{var.color.r, var.color.g, var.color.b, var.color.a},
-			)
-		}
-	}
+	ui_context := game.ui_context
 
 	mu.begin(ui_context)
 
+	update_end_turn_button(ui_context)
 	update_hovered_hex_window(ui_context)
 
 	mu.end(ui_context)
+
+	draw_microui_commands(ui_context)
 }
 
 update_one_frame :: proc(dt: f32) {
 	update_camera(dt)
 	update_player(dt)
+	update_turn(game.turn_state_ctrl, dt)
 }
 
 update_camera :: proc(dt: f32) {
@@ -229,7 +217,9 @@ Level :: struct {
 }
 
 Game :: struct {
-	level:  Level,
-	player: Player,
-	camera: Camera,
+	level:           Level,
+	player:          Player,
+	camera:          Camera,
+	ui_context:      ^mu.Context,
+	turn_state_ctrl: ^Turn_State_Controller,
 }

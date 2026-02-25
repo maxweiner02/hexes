@@ -1,6 +1,6 @@
 package hexes
 
-import "core:c"
+import "core:math"
 import "core:strings"
 import "vendor:raylib"
 
@@ -26,12 +26,19 @@ clear_background :: raylib.ClearBackground
 
 get_font_default :: raylib.GetFontDefault
 
+vec2_length :: raylib.Vector2Length
+
+vec2_to_deg :: proc(dir: Vec2) -> f32 {
+	radians := math.atan2_f32(dir.y, dir.x)
+	return radians * raylib.RAD2DEG
+}
+
 draw_poly :: proc(center: Vec2, sides: int, radius: f32, rotation: f32, color: ColorEx) {
-	raylib.DrawPoly(center, c.int(sides), radius, rotation, color)
+	raylib.DrawPoly(center, i32(sides), radius, rotation, color)
 }
 
 draw_poly_lines :: proc(center: Vec2, sides: int, radius: f32, rotation: f32, color: ColorEx) {
-	raylib.DrawPolyLines(center, c.int(sides), radius, rotation, color)
+	raylib.DrawPolyLines(center, i32(sides), radius, rotation, color)
 }
 
 draw_line :: proc(start: Vec2, end: Vec2, thickness: f32, color: ColorEx) {
@@ -39,11 +46,17 @@ draw_line :: proc(start: Vec2, end: Vec2, thickness: f32, color: ColorEx) {
 }
 
 draw_spline :: proc(points: []Vec2, count: int, thickness: f32, color: ColorEx) {
-	raylib.DrawSplineCatmullRom(raw_data(points), c.int(count), thickness, color)
+	raylib.DrawSplineCatmullRom(raw_data(points), i32(count), thickness, color)
 }
 
-draw_rectangle :: proc(pos_x, pos_y, width, height: i32, color: ColorEx) {
-	raylib.DrawRectangle(pos_x, pos_y, width, height, color)
+// points is a 4-length array of Vec2s that represent N-1 ..= N+2 points of the desired path;
+// seg_frac is a f32 between 0.0 ..= 1.0 that represents the progress along the desired path
+get_spline :: proc(points: [4]Vec2, seg_frac: f32) -> Vec2 {
+	return raylib.GetSplinePointCatmullRom(points[0], points[1], points[2], points[3], seg_frac)
+}
+
+draw_rectangle :: proc(rect: Rectangle, color: ColorEx) {
+	raylib.DrawRectangleRec(rect, color)
 }
 
 measure_text :: proc(text: string, fontSize: i32, allocator := context.temp_allocator) -> i32 {
@@ -52,16 +65,18 @@ measure_text :: proc(text: string, fontSize: i32, allocator := context.temp_allo
 }
 
 measure_text_ex :: proc(
+	font: Font,
 	text: string,
 	fontSize: f32,
 	spacing: f32,
 	allocator := context.temp_allocator,
 ) -> Vec2 {
 	ctext := strings.clone_to_cstring(text, allocator)
-	return raylib.MeasureTextEx(raylib.GetFontDefault(), ctext, fontSize, spacing)
+	return raylib.MeasureTextEx(font, ctext, fontSize, spacing)
 }
 
 draw_text :: proc(
+	font: Font,
 	text: string,
 	pos: Vec2,
 	fontSize: f32,
@@ -70,8 +85,12 @@ draw_text :: proc(
 	allocator := context.temp_allocator,
 ) {
 	ctext := strings.clone_to_cstring(text, allocator)
-	raylib.DrawTextEx(raylib.GetFontDefault(), ctext, pos, fontSize, spacing, color)
+	raylib.DrawTextEx(font, ctext, pos, fontSize, spacing, color)
 }
+
+Font :: raylib.Font
+
+Rectangle :: raylib.Rectangle
 
 check_collision_point_poly :: raylib.CheckCollisionPointPoly
 
