@@ -89,14 +89,14 @@ update_end_turn_button :: proc(ctx: ^mu.Context) {
 	) {
 		mu.layout_row(ctx, {win_width - 16})
 		if .SUBMIT in mu.button(ctx, "End Turn") {
-			game.turn_state_ctrl.state = .EndTurn
+			game.encounter_controller.end_turn_requested = true
 		}
 		mu.end_window(ctx)
 	}
 }
 
 update_hovered_hex_window :: proc(ctx: ^mu.Context) {
-	if !game.player.is_hovering do return
+	if !game.players[0].is_hovering do return
 
 	// at 14 font_size, the window will be 78 px tall with 3 rows
 	if mu.begin_window(
@@ -109,22 +109,22 @@ update_hovered_hex_window :: proc(ctx: ^mu.Context) {
 
 		terrain_str := fmt.tprintf(
 			"Terrain - %v | Cost - %v",
-			game.level.hex_map.hmap[game.player.hover_hex_id].terrain,
-			TERRAIN_DATA[game.level.hex_map.hmap[game.player.hover_hex_id].terrain].movement_cost,
+			game.level.hex_map.hmap[game.players[0].hover_hex_id].terrain,
+			TERRAIN_DATA[game.level.hex_map.hmap[game.players[0].hover_hex_id].terrain].movement_cost,
 		)
 
 		mu.text(ctx, terrain_str)
 
-		if game.level.hex_map.hmap[game.player.hover_hex_id].structure != .None {
+		if game.level.hex_map.hmap[game.players[0].hover_hex_id].structure != .None {
 			structure_str := fmt.tprintf(
 				"Structure - %v",
-				game.level.hex_map.hmap[game.player.hover_hex_id].structure,
+				game.level.hex_map.hmap[game.players[0].hover_hex_id].structure,
 			)
 
 			mu.text(ctx, structure_str)
 		}
 
-		pawn, ok := get_pawn_for_hex(game.player.hover_hex_id)
+		pawn, ok := get_pawn_for_hex(game.players[0].hover_hex_id)
 		if ok {
 			pawn_str := fmt.tprintf("Unit - %v", pawn.name)
 			mu.text(ctx, pawn_str)

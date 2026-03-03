@@ -35,10 +35,13 @@ main :: proc() {
 	{
 		init_game()
 		init_level()
+		init_camera()
 		init_player()
+		init_encounter_controller()
+		init_timer_system()
 
 		free_all(context.temp_allocator)
 	}
 
-	run_game_loop()
+	run_game()
 }

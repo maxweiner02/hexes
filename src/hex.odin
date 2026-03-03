@@ -91,8 +91,9 @@ draw_hex :: proc(hex: ^Hex) {
 	}
 
 	// determine visibility
+	player := &game.players[0]
 	is_visible := false
-	for visible_id in game.player.visible_hex_ids {
+	for visible_id in player.visible_hex_ids {
 		if hex_id == visible_id {
 			is_visible = true
 			break
@@ -107,16 +108,16 @@ draw_hex :: proc(hex: ^Hex) {
 		}
 	}
 
-	if game.player.is_selecting && game.player.select_hex_id == hex_id {
+	if player.is_selecting && player.select_hex_id == hex_id {
 		// right now don't color selected, but eventually put something here
 	}
 
-	if game.player.is_hovering && game.player.hover_hex_id == hex_id {
+	if player.is_hovering && player.hover_hex_id == hex_id {
 		draw_poly(center, 6, f32(layout.radius), 30, SELECTED_WHITE)
 	}
 
-	if game.player.select_pawn != nil {
-		for reachable_id in game.player.select_pawn.accessible_hex_ids {
+	if player.select_pawn != nil {
+		for reachable_id in player.select_pawn.accessible_hex_ids {
 			if hex_id == reachable_id {
 				draw_poly(center, 6, f32(layout.radius), 30, REACHABLE_WHITE)
 			}
@@ -148,7 +149,7 @@ draw_path :: proc(hex_ids: []Hex_Id) {
 	path_centers[0] = path_centers[1]
 	path_centers[point_count - 1] = path_centers[point_count - 2]
 
-	draw_spline(path_centers, point_count, 6, game.player.select_pawn.texture)
+	draw_spline(path_centers, point_count, 6, game.players[0].select_pawn.texture)
 }
 
 @(private = "file")
@@ -163,25 +164,27 @@ draw_hex_map :: proc() {
 		draw_hex(&hex)
 	}
 
-	for pawn in game.player.pawns {
+	for pawn in game.level.pawns {
 		draw_pawn(pawn)
 	}
 
-	if game.player.select_pawn != nil {
+	player := &game.players[0]
+
+	state, is_input_phase := game.encounter_controller.state.(Input_Phase)
+
+	if player.select_pawn != nil && is_input_phase && player.select_pawn == get_current_pawn() {
 		// this is the outline for the accessible hexes
 		outline := get_poly_outline(
-			game.player.select_pawn.accessible_hex_ids,
-			game.player.select_pawn.position_hex_id,
+			player.select_pawn.accessible_hex_ids,
+			player.select_pawn.position_hex_id,
 			context.temp_allocator,
 		)
-		draw_outline(outline, 3, game.player.select_pawn.texture)
+		draw_outline(outline, 3, player.select_pawn.texture)
 	}
 
 	// this is the path using A* to the hovered hex
-	if game.player.is_hovering &&
-	   game.player.cached_path != nil &&
-	   game.turn_state_ctrl.state == .PlayerTurn {
-		draw_path(game.player.cached_path)
+	if player.is_hovering && player.cached_path != nil && is_input_phase {
+		draw_path(player.cached_path)
 	}
 
 	// LoS Testing

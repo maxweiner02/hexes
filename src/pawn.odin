@@ -7,7 +7,7 @@ draw_pawn :: proc(pawn: ^Pawn) {
 // given a hex_id, return the pawn on it and a bool describing success
 get_pawn_for_hex :: proc(hex_id: Hex_Id) -> (^Pawn, bool) {
 	// assume that there can only be one pawn on a hex, so once we find it return
-	for pawn in game.player.pawns {
+	for pawn in game.level.pawns {
 		if pawn.position_hex_id == hex_id do return pawn, true
 	}
 
@@ -77,6 +77,8 @@ Movement_State :: struct {
 // a unit
 Pawn :: struct {
 	name:               string,
+	player_index:       int,
+	initiative:         int,
 	accessible_hex_ids: []Hex_Id,
 	visible_hex_ids:    []Hex_Id,
 	position_hex_id:    Hex_Id, // represents the hex coord the pawn is on

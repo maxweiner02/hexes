@@ -59,6 +59,10 @@ draw_rectangle :: proc(rect: Rectangle, color: ColorEx) {
 	raylib.DrawRectangleRec(rect, color)
 }
 
+draw_rectangle_rounded :: proc(rect: Rectangle, color: ColorEx) {
+	raylib.DrawRectangleRounded(rect, 0.2, 0, color)
+}
+
 measure_text :: proc(text: string, fontSize: i32, allocator := context.temp_allocator) -> i32 {
 	ctext := strings.clone_to_cstring(text, allocator)
 	return raylib.MeasureText(ctext, fontSize)
@@ -93,6 +97,7 @@ Font :: raylib.Font
 Rectangle :: raylib.Rectangle
 
 check_collision_point_poly :: raylib.CheckCollisionPointPoly
+check_collision_point_rect :: raylib.CheckCollisionPointRec
 
 get_mouse_pos :: raylib.GetMousePosition
 get_wheel_scroll :: raylib.GetMouseWheelMove
@@ -120,6 +125,7 @@ GREEN :: raylib.GREEN
 RED :: raylib.RED
 PURPLE :: raylib.PURPLE
 GRAY :: raylib.GRAY
+LIGHTGRAY :: raylib.LIGHTGRAY
 BROWN :: raylib.BROWN
 PINK :: raylib.PINK
 
@@ -131,3 +137,10 @@ DISCOVERED_GREY :: ColorEx{80, 80, 80, 200}
 ColorEx :: raylib.Color
 
 Camera :: raylib.Camera2D
+
+// raygui shims
+
+im_button :: proc(rect: Rectangle, str: string) -> bool {
+	cstr := strings.clone_to_cstring(str, context.temp_allocator)
+	return raylib.GuiButton(rect, cstr)
+}

@@ -1,7 +1,5 @@
 package hexes
 
-import "core:math/linalg"
-import "core:math/rand"
 import mu "vendor:microui"
 
 game: ^Game
@@ -9,80 +7,27 @@ game: ^Game
 init_game :: proc() {
 	game = new(Game)
 
-	game.camera = {
-		target = {0, 0},
-		offset = {WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2},
-		zoom   = 1.5,
-	}
-
 	game.ui_context = init_mu()
-
-	game.turn_state_ctrl = new(Turn_State_Controller)
-	game.turn_state_ctrl.state = .StartEncounter
-}
-
-init_level :: proc() {
-	test_map := Hex_Map {
-		hmap = make(map[i64]Hex),
-		layout = {radius = 30, origin = {0, 0}},
-	}
-
-	game.level = {
-		name    = "Test Level",
-		hex_map = test_map,
-	}
-
-	all_terrains := [?]Terrain_Type{.Lava, .Grass, .Desert, .Wall}
-
-
-	for q in -MAP_RADIUS ..= MAP_RADIUS {
-		(q >= -MAP_RADIUS && q <= MAP_RADIUS) or_continue
-
-		for r in -MAP_RADIUS ..= MAP_RADIUS {
-			(r >= -MAP_RADIUS && r <= MAP_RADIUS) or_continue
-
-			s := -q - r
-
-			(s >= -MAP_RADIUS && s <= MAP_RADIUS) or_continue
-
-			new_hex := Hex {
-				q         = q,
-				r         = r,
-				terrain   = rand.choice(all_terrains[:]),
-				structure = .None,
-			}
-
-			// for now make sure the origin is not impassable so we don't spawn in a wall
-			if new_hex.q == 0 && new_hex.r == 0 do new_hex.terrain = .Grass
-			if new_hex.q == 2 && new_hex.r == -2 do new_hex.terrain = .Grass
-
-			if new_hex.q == 1 && new_hex.r == 1 {
-				new_hex.terrain = .Grass
-				new_hex.structure = .Fence
-			}
-
-			resolve_properties(&new_hex)
-			add_hex(&game.level.hex_map, new_hex)
-		}
-	}
-
-	compute_map_bounds()
 }
 
 shutdown_game :: proc() {
-	for pawn in game.player.pawns {
+	for pawn in game.level.pawns {
 		if pawn == nil do continue
 		if pawn.accessible_hex_ids != nil do delete(pawn.accessible_hex_ids)
 		if pawn.visible_hex_ids != nil do delete(pawn.visible_hex_ids)
 		free(pawn)
 	}
-	delete(game.player.pawns)
+	delete(game.level.pawns)
 
-	if game.player.visible_hex_ids != nil {
-		delete(game.player.visible_hex_ids)
+	if game.players[0].visible_hex_ids != nil {
+		delete(game.players[0].visible_hex_ids)
 	}
 
-	if game.player.cached_path != nil do delete(game.player.cached_path)
+	if game.players[0].cached_path != nil do delete(game.players[0].cached_path)
+
+	if game.encounter_controller.initiative_order != nil {
+		delete(game.encounter_controller.initiative_order)
+	}
 
 	delete(game.level.hex_map.hmap)
 
@@ -90,13 +35,14 @@ shutdown_game :: proc() {
 	free(game.ui_context.style)
 	free(game.ui_context)
 
-	free(game.turn_state_ctrl)
-
 	free(game)
 }
 
-run_game_loop :: proc() {
+run_game :: proc() {
+	prepare_encounter()
+
 	for !window_should_close() {
+		compose_ui(context.temp_allocator)
 		update_one_frame(get_frame_time())
 		draw()
 
@@ -107,6 +53,7 @@ run_game_loop :: proc() {
 draw :: proc() {
 	begin_drawing()
 	clear_background(WHITE)
+
 
 	{
 		begin_2d_mode(game.camera)
@@ -121,105 +68,56 @@ draw :: proc() {
 	end_drawing()
 }
 
+compose_ui :: proc(allocator := context.temp_allocator) {
+	game.level.ui_elements = make([dynamic]Rectangle, allocator)
+
+	end_btn_rect := Rectangle {
+		x      = WINDOW_WIDTH - 92,
+		y      = 5,
+		width  = 82,
+		height = 22,
+	}
+
+	append(&game.level.ui_elements, end_btn_rect)
+}
+
 draw_ui :: proc() {
 	ui_context := game.ui_context
 
 	mu.begin(ui_context)
 
-	update_end_turn_button(ui_context)
+	// update_end_turn_button(ui_context)
 	update_hovered_hex_window(ui_context)
 
 	mu.end(ui_context)
 
 	draw_microui_commands(ui_context)
+
+	end_btn_rect := Rectangle {
+		x      = WINDOW_WIDTH - 92,
+		y      = 5,
+		width  = 82,
+		height = 22,
+	}
+
+	if im_button(end_btn_rect, "End Turn") {
+		game.encounter_controller.end_turn_requested = true
+	}
 }
 
 update_one_frame :: proc(dt: f32) {
 	update_camera(dt)
-	update_player(dt)
-	update_turn(game.turn_state_ctrl, dt)
-}
-
-update_camera :: proc(dt: f32) {
-	move_camera(dt)
-	zoom_camera()
-	clamp_camera()
-}
-
-move_camera :: proc(dt: f32) {
-	mouse_pos := get_mouse_pos()
-
-	if (mouse_pos.x >= 0 && mouse_pos.y <= CAMERA_PAN_MARGIN) || is_key_down(UP) {
-		game.camera.target.y -= CAMERA_SPEED * dt
-	} else if (mouse_pos.y <= WINDOW_HEIGHT && mouse_pos.y >= WINDOW_HEIGHT - CAMERA_PAN_MARGIN) ||
-	   is_key_down(DOWN) {
-		game.camera.target.y += CAMERA_SPEED * dt
-	}
-
-	if (mouse_pos.x >= 0 && mouse_pos.x <= CAMERA_PAN_MARGIN) || is_key_down(LEFT) {
-		game.camera.target.x -= CAMERA_SPEED * dt
-	} else if (mouse_pos.x <= WINDOW_WIDTH && mouse_pos.x >= WINDOW_WIDTH - CAMERA_PAN_MARGIN) ||
-	   is_key_down(RIGHT) {
-		game.camera.target.x += CAMERA_SPEED * dt
-	}
-}
-
-zoom_camera :: proc() {
-	wheel_scroll := get_wheel_scroll()
-
-	if wheel_scroll != 0 {
-		game.camera.zoom = clamp(
-			linalg.exp2(linalg.log2(game.camera.zoom) + wheel_scroll * 0.1),
-			CAMERA_ZOOM_MIN,
-			CAMERA_ZOOM_MAX,
-		)
-	}
-}
-
-clamp_camera :: proc() {
-	allowed_min_q := game.level.bounds_q[0] + (WINDOW_WIDTH / (2 * game.camera.zoom))
-	allowed_max_q := game.level.bounds_q[1] - (WINDOW_WIDTH / (2 * game.camera.zoom))
-
-	allowed_min_r := game.level.bounds_r[0] + (WINDOW_HEIGHT / (2 * game.camera.zoom))
-	allowed_max_r := game.level.bounds_r[1] - (WINDOW_HEIGHT / (2 * game.camera.zoom))
-
-	game.camera.target = {
-		clamp(game.camera.target.x, allowed_min_q, allowed_max_q),
-		clamp(game.camera.target.y, allowed_min_r, allowed_max_r),
-	}
-}
-
-compute_map_bounds :: proc() {
-	hmap := game.level.hex_map.hmap
-	layout := game.level.hex_map.layout
-
-	// get the hexes at the polar edges of q and r (x,y)
-	min_q_hex, _ := hmap[pack_axial(-MAP_RADIUS, 0)]
-	max_q_hex, _ := hmap[pack_axial(MAP_RADIUS, 0)]
-	min_r_hex, _ := hmap[pack_axial(0, -MAP_RADIUS)]
-	max_r_hex, _ := hmap[pack_axial(0, MAP_RADIUS)]
-
-	// get their pixel coords
-	min_q := axial_to_pixel(layout, &min_q_hex).x - cast(f32)layout.radius
-	max_q := axial_to_pixel(layout, &max_q_hex).x + cast(f32)layout.radius
-	min_r := axial_to_pixel(layout, &min_r_hex).y - cast(f32)layout.radius
-	max_r := axial_to_pixel(layout, &max_r_hex).y + cast(f32)layout.radius
-
-	game.level.bounds_q = {min_q, max_q}
-	game.level.bounds_r = {min_r, max_r}
-}
-
-Level :: struct {
-	name:     string,
-	hex_map:  Hex_Map,
-	bounds_q: Vec2,
-	bounds_r: Vec2,
+	update_timers(dt)
+	update_mu_inputs(game.ui_context)
+	update_player_hover(dt)
+	update_encounter_controller(dt)
 }
 
 Game :: struct {
-	level:           Level,
-	player:          Player,
-	camera:          Camera,
-	ui_context:      ^mu.Context,
-	turn_state_ctrl: ^Turn_State_Controller,
+	level:                Level,
+	players:              [2]Player,
+	camera:               Camera,
+	ui_context:           ^mu.Context,
+	encounter_controller: Encounter_State_Controller,
+	timer_system:         Timer_System,
 }

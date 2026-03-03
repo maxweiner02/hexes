@@ -1,169 +1,142 @@
 package hexes
 
 init_player :: proc() {
-	pawn_one := new(Pawn)
-	pawn_one^ = Pawn {
-		name               = "Pawn One",
-		accessible_hex_ids = nil,
-		visible_hex_ids    = nil,
-		position_hex_id    = pack_axial(0, 0),
-		visual_position    = axial_to_pixel(
-			game.level.hex_map.layout,
-			&game.level.hex_map.hmap[pack_axial(0, 0)],
-		),
-		visual_rotation    = 0,
-		movement_range     = 4,
-		cur_movement_range = 4,
-		sight_range        = 4,
-		movement_state     = {},
-		texture            = PINK,
+	game.players[0] = {}
+	game.players[0].visible_hex_ids = resolve_player_visible_hexes(0)
+}
+
+// returns the merged visible hex ids for all pawns belonging to player_idx
+resolve_player_visible_hexes :: proc(
+	player_idx: int,
+	allocator := context.allocator,
+) -> []Hex_Id {
+	player_pawns := make([dynamic]^Pawn, context.temp_allocator)
+	for pawn in game.level.pawns {
+		if pawn.player_index == player_idx {
+			append(&player_pawns, pawn)
+		}
 	}
-
-	pawn_two := new(Pawn)
-	pawn_two^ = Pawn {
-		name               = "Pawn Two",
-		accessible_hex_ids = nil,
-		visible_hex_ids    = nil,
-		position_hex_id    = pack_axial(2, -2),
-		visual_position    = axial_to_pixel(
-			game.level.hex_map.layout,
-			&game.level.hex_map.hmap[pack_axial(2, -2)],
-		),
-		visual_rotation    = 0,
-		movement_range     = 6,
-		cur_movement_range = 6,
-		sight_range        = 6,
-		movement_state     = {},
-		texture            = PURPLE,
-	}
-
-	pawns := make([]^Pawn, 2)
-	pawns[0] = pawn_one
-	pawns[1] = pawn_two
-
-	game.player = {
-		pawns             = pawns,
-		select_pawn       = nil,
-		visible_hex_ids   = nil,
-		cached_path       = nil,
-		hover_hex_id      = 0,
-		prev_hover_hex_id = 0,
-		select_hex_id     = 0,
-		is_hovering       = false,
-		is_selecting      = false,
-	}
-
-	for pawn in game.player.pawns {
-		pawn.visible_hex_ids = get_visible_hexes(pawn.position_hex_id, pawn.sight_range)
-		pawn.accessible_hex_ids = get_accessible_hexes(
-			pawn.position_hex_id,
-			pawn.cur_movement_range,
-		)
-	}
-
-	// since the player has vision over all pawns' vision we need to merge them
-	game.player.visible_hex_ids = resolve_all_visible_hexes(game.player.pawns)
+	return resolve_all_visible_hexes(player_pawns[:], allocator)
 }
 
 update_player :: proc(dt: f32) {
-	update_mu_inputs(game.ui_context)
-	update_player_hover(dt)
 	update_player_selection(dt)
 	update_player_movement(dt)
 }
 
-@(private = "file")
 update_player_hover :: proc(dt: f32) {
 	mouse_pos := get_mouse_pos()
 	mouse_world := screen_to_world_2d(mouse_pos, game.camera)
 
+	player := &game.players[0]
+
+	ui_hover := false
+	for rect in game.level.ui_elements {
+		if check_collision_point_rect(mouse_pos, rect) {
+			ui_hover = true
+			break
+		}
+	}
+
 	hex, ok := get_hex_for_vec(&game.level.hex_map, mouse_world)
 
-	game.player.is_hovering = ok
+	player.is_hovering = ok && !ui_hover
 
 	if ok {
-		game.player.hover_hex_id = pack_hex(hex^)
+		player.hover_hex_id = pack_hex(hex^)
 	}
 
 	// recalculate cached path only when the hovered hex changes
-	hover_changed := game.player.hover_hex_id != game.player.prev_hover_hex_id
-	game.player.prev_hover_hex_id = game.player.hover_hex_id
+	hover_changed := player.hover_hex_id != player.prev_hover_hex_id
+	player.prev_hover_hex_id = player.hover_hex_id
 
-	if hover_changed && game.player.is_hovering && game.turn_state_ctrl.state == .PlayerTurn {
-		if game.player.cached_path != nil {
-			delete(game.player.cached_path)
-			game.player.cached_path = nil
+	_, is_input_phase := game.encounter_controller.state.(Input_Phase)
+
+	if hover_changed && player.is_hovering && is_input_phase {
+		if player.cached_path != nil {
+			delete(player.cached_path)
+			player.cached_path = nil
 		}
 
-		// only calculate path if a pawn is selected and the hovered hex is accessible for that pawn
-		if game.player.select_pawn != nil {
+		// only calculate path if the selected pawn is the current (active) pawn
+		current_pawn := get_current_pawn()
+		if player.select_pawn != nil &&
+		   current_pawn != nil &&
+		   player.select_pawn == current_pawn {
 			hovering_accessible: bool
-			for id in game.player.select_pawn.accessible_hex_ids {
-				if id == game.player.hover_hex_id {
+			for id in player.select_pawn.accessible_hex_ids {
+				if id == player.hover_hex_id {
 					hovering_accessible = true
 					break
 				}
 			}
 
 			if hovering_accessible {
-				game.player.cached_path = get_path_to_hex(
-					game.player.select_pawn.position_hex_id,
-					game.player.hover_hex_id,
-					game.player.select_pawn.cur_movement_range,
+				player.cached_path = get_path_to_hex(
+					player.select_pawn.position_hex_id,
+					player.hover_hex_id,
+					player.select_pawn.cur_movement_range,
 				)
 			}
 		}
-	} else if !game.player.is_hovering &&
-	   game.player.cached_path != nil &&
-	   game.turn_state_ctrl.state == .PlayerTurn {
-		delete(game.player.cached_path)
-		game.player.cached_path = nil
+	} else if !player.is_hovering && player.cached_path != nil && is_input_phase {
+		delete(player.cached_path)
+		player.cached_path = nil
 	}
 }
 
 @(private = "file")
 update_player_selection :: proc(dt: f32) {
-	if game.turn_state_ctrl.state != .PlayerTurn do return
+	_, is_input_phase := game.encounter_controller.state.(Input_Phase)
+	if !is_input_phase do return
 	if !is_mouse_button_released(LEFT_CLICK) do return
 
-	game.player.is_selecting = game.player.is_hovering
+	player := &game.players[0]
+	player.is_selecting = player.is_hovering
 
-	if game.player.is_selecting {
-		game.player.select_hex_id = game.player.hover_hex_id
+	if player.is_selecting {
+		player.select_hex_id = player.hover_hex_id
 
-		pawn, ok := get_pawn_for_hex(game.player.select_hex_id)
-		game.player.pending_action = Select {
+		pawn, ok := get_pawn_for_hex(player.select_hex_id)
+		player.pending_action = Select {
 			pawn = ok ? pawn : nil,
 		}
 	}
 }
 
+@(private = "file")
 update_player_movement :: proc(dt: f32) {
-	if game.turn_state_ctrl.state != .PlayerTurn do return
+	_, is_input_phase := game.encounter_controller.state.(Input_Phase)
+	if !is_input_phase do return
 	if !is_mouse_button_released(RIGHT_CLICK) do return
 
-	if game.player.select_pawn == nil do return
+	player := &game.players[0]
 
-	if game.player.is_hovering {
+	if player.select_pawn == nil do return
+
+	// only the current pawn (whose turn it is) may be moved
+	current_pawn := get_current_pawn()
+	if current_pawn == nil || player.select_pawn != current_pawn do return
+
+	if player.is_hovering {
 		can_move: bool
-		for id in game.player.select_pawn.accessible_hex_ids {
-			if id == game.player.hover_hex_id {
+		for id in player.select_pawn.accessible_hex_ids {
+			if id == player.hover_hex_id {
 				can_move = true
 				break
 			}
 		}
 
 		if can_move {
-			game.player.pending_action = Move {
-				pawn = game.player.select_pawn,
-				dest = game.player.hover_hex_id,
+			player.pending_action = Move {
+				pawn = player.select_pawn,
+				dest = player.hover_hex_id,
 			}
 		}
 	}
 }
 
 Player :: struct {
-	pawns:                     []^Pawn,
 	visible_hex_ids:           []Hex_Id,
 	cached_path:               []Hex_Id,
 	select_pawn:               ^Pawn,
