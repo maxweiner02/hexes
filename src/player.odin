@@ -6,10 +6,7 @@ init_player :: proc() {
 }
 
 // returns the merged visible hex ids for all pawns belonging to player_idx
-resolve_player_visible_hexes :: proc(
-	player_idx: int,
-	allocator := context.allocator,
-) -> []Hex_Id {
+resolve_player_visible_hexes :: proc(player_idx: int, allocator := context.allocator) -> []Hex_Id {
 	player_pawns := make([dynamic]^Pawn, context.temp_allocator)
 	for pawn in game.level.pawns {
 		if pawn.player_index == player_idx {
@@ -21,7 +18,6 @@ resolve_player_visible_hexes :: proc(
 
 update_player :: proc(dt: f32) {
 	update_player_selection(dt)
-	update_player_movement(dt)
 }
 
 update_player_hover :: proc(dt: f32) {
@@ -60,9 +56,7 @@ update_player_hover :: proc(dt: f32) {
 
 		// only calculate path if the selected pawn is the current (active) pawn
 		current_pawn := get_current_pawn()
-		if player.select_pawn != nil &&
-		   current_pawn != nil &&
-		   player.select_pawn == current_pawn {
+		if player.select_pawn != nil && current_pawn != nil && player.select_pawn == current_pawn {
 			hovering_accessible: bool
 			for id in player.select_pawn.accessible_hex_ids {
 				if id == player.hover_hex_id {
@@ -98,41 +92,7 @@ update_player_selection :: proc(dt: f32) {
 		player.select_hex_id = player.hover_hex_id
 
 		pawn, ok := get_pawn_for_hex(player.select_hex_id)
-		player.pending_action = Select {
-			pawn = ok ? pawn : nil,
-		}
-	}
-}
-
-@(private = "file")
-update_player_movement :: proc(dt: f32) {
-	_, is_input_phase := game.encounter_controller.state.(Input_Phase)
-	if !is_input_phase do return
-	if !is_mouse_button_released(RIGHT_CLICK) do return
-
-	player := &game.players[0]
-
-	if player.select_pawn == nil do return
-
-	// only the current pawn (whose turn it is) may be moved
-	current_pawn := get_current_pawn()
-	if current_pawn == nil || player.select_pawn != current_pawn do return
-
-	if player.is_hovering {
-		can_move: bool
-		for id in player.select_pawn.accessible_hex_ids {
-			if id == player.hover_hex_id {
-				can_move = true
-				break
-			}
-		}
-
-		if can_move {
-			player.pending_action = Move {
-				pawn = player.select_pawn,
-				dest = player.hover_hex_id,
-			}
-		}
+		player.select_pawn = ok ? pawn : nil
 	}
 }
 
@@ -144,19 +104,4 @@ Player :: struct {
 	prev_hover_hex_id:         Hex_Id,
 	select_hex_id:             Hex_Id,
 	is_hovering, is_selecting: bool,
-	pending_action:            Player_Action,
-}
-
-Player_Action :: union {
-	Move,
-	Select,
-}
-
-Select :: struct {
-	pawn: ^Pawn,
-}
-
-Move :: struct {
-	pawn: ^Pawn,
-	dest: Hex_Id,
 }

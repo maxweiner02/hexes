@@ -20,6 +20,10 @@ pack_axial :: proc(q: int, r: int) -> Hex_Id {
 	return (i64(q) << 32) | i64(u32(r))
 }
 
+unpack_hex_id :: proc(hex_id: Hex_Id) -> Hex {
+	return Hex{q = int(hex_id >> 32), r = int(i32(hex_id))}
+}
+
 axial_to_pixel :: proc(layout: Hex_Layout, h: ^Hex) -> Vec2 {
 	// x = (√3 * q + √3/2 * r) * radius
 	x :=

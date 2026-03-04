@@ -37,6 +37,8 @@ move_camera :: proc(dt: f32) {
 zoom_camera :: proc() {
 	wheel_scroll := get_wheel_scroll()
 
+	if check_collision_point_rect(get_mouse_pos(), get_message_box_rect()) do return
+
 	if wheel_scroll != 0 {
 		game.camera.zoom = clamp(
 			linalg.exp2(linalg.log2(game.camera.zoom) + wheel_scroll * 0.1),

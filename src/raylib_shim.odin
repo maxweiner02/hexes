@@ -8,6 +8,10 @@ init_window :: raylib.InitWindow
 
 close_window :: raylib.CloseWindow
 
+get_screen_height :: raylib.GetScreenHeight
+
+get_screen_width :: raylib.GetScreenWidth
+
 set_target_fps :: raylib.SetTargetFPS
 
 get_frame_time :: raylib.GetFrameTime

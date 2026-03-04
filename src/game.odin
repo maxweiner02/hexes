@@ -103,6 +103,8 @@ draw_ui :: proc() {
 	if im_button(end_btn_rect, "End Turn") {
 		game.encounter_controller.end_turn_requested = true
 	}
+
+	draw_messages()
 }
 
 update_one_frame :: proc(dt: f32) {
@@ -111,6 +113,7 @@ update_one_frame :: proc(dt: f32) {
 	update_mu_inputs(game.ui_context)
 	update_player_hover(dt)
 	update_encounter_controller(dt)
+	update_messages(dt)
 }
 
 Game :: struct {
@@ -120,4 +123,5 @@ Game :: struct {
 	ui_context:           ^mu.Context,
 	encounter_controller: Encounter_State_Controller,
 	timer_system:         Timer_System,
+	message_system:       Message_System,
 }
