@@ -110,6 +110,7 @@ screen_to_world_2d :: raylib.GetScreenToWorld2D
 
 is_mouse_button_pressed :: raylib.IsMouseButtonPressed
 is_mouse_button_released :: raylib.IsMouseButtonReleased
+is_mouse_button_down :: raylib.IsMouseButtonDown
 
 LEFT_CLICK :: raylib.MouseButton.LEFT
 RIGHT_CLICK :: raylib.MouseButton.RIGHT
@@ -141,6 +142,8 @@ DISCOVERED_GREY :: ColorEx{80, 80, 80, 200}
 ColorEx :: raylib.Color
 
 Camera :: raylib.Camera2D
+
+Texture_2D :: raylib.Texture2D
 
 // raygui shims
 

@@ -26,17 +26,9 @@ update_player_hover :: proc(dt: f32) {
 
 	player := &game.players[0]
 
-	ui_hover := false
-	for rect in game.level.ui_elements {
-		if check_collision_point_rect(mouse_pos, rect) {
-			ui_hover = true
-			break
-		}
-	}
-
 	hex, ok := get_hex_for_vec(&game.level.hex_map, mouse_world)
 
-	player.is_hovering = ok && !ui_hover
+	player.is_hovering = ok && !ui_consuming_mouse()
 
 	if ok {
 		player.hover_hex_id = pack_hex(hex^)

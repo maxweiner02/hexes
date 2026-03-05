@@ -150,10 +150,9 @@ compute_map_bounds :: proc() {
 }
 
 Level :: struct {
-	name:        string,
-	pawns:       []^Pawn,
-	hex_map:     Hex_Map,
-	bounds_q:    Vec2,
-	bounds_r:    Vec2,
-	ui_elements: [dynamic]Rectangle,
+	name:     string,
+	pawns:    []^Pawn,
+	hex_map:  Hex_Map,
+	bounds_q: Vec2,
+	bounds_r: Vec2,
 }

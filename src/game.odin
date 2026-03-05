@@ -6,8 +6,6 @@ game: ^Game
 
 init_game :: proc() {
 	game = new(Game)
-
-	game.ui_context = init_mu()
 }
 
 shutdown_game :: proc() {
@@ -31,10 +29,6 @@ shutdown_game :: proc() {
 
 	delete(game.level.hex_map.hmap)
 
-	free(game.ui_context.style.font)
-	free(game.ui_context.style)
-	free(game.ui_context)
-
 	free(game)
 }
 
@@ -42,9 +36,10 @@ run_game :: proc() {
 	prepare_encounter()
 
 	for !window_should_close() {
-		compose_ui(context.temp_allocator)
+		begin_ui()
 		update_one_frame(get_frame_time())
 		draw()
+		end_ui()
 
 		free_all(context.temp_allocator)
 	}
@@ -68,39 +63,20 @@ draw :: proc() {
 	end_drawing()
 }
 
-compose_ui :: proc(allocator := context.temp_allocator) {
-	game.level.ui_elements = make([dynamic]Rectangle, allocator)
-
-	end_btn_rect := Rectangle {
-		x      = WINDOW_WIDTH - 92,
-		y      = 5,
-		width  = 82,
-		height = 22,
-	}
-
-	append(&game.level.ui_elements, end_btn_rect)
-}
-
 draw_ui :: proc() {
-	ui_context := game.ui_context
-
-	mu.begin(ui_context)
-
-	// update_end_turn_button(ui_context)
-	update_hovered_hex_window(ui_context)
-
-	mu.end(ui_context)
-
-	draw_microui_commands(ui_context)
-
 	end_btn_rect := Rectangle {
-		x      = WINDOW_WIDTH - 92,
+		x      = WINDOW_WIDTH - 105,
 		y      = 5,
-		width  = 82,
-		height = 22,
+		width  = 100,
+		height = 26,
 	}
 
-	if im_button(end_btn_rect, "End Turn") {
+	if ui_button(
+		   end_btn_rect,
+		   "end_turn_btn",
+		   Button_Params{text = "End Turn", layer = UI_LAYER_PANEL},
+	   ) ==
+	   .Pressed {
 		game.encounter_controller.end_turn_requested = true
 	}
 
@@ -110,7 +86,6 @@ draw_ui :: proc() {
 update_one_frame :: proc(dt: f32) {
 	update_camera(dt)
 	update_timers(dt)
-	update_mu_inputs(game.ui_context)
 	update_player_hover(dt)
 	update_encounter_controller(dt)
 	update_messages(dt)
@@ -120,7 +95,7 @@ Game :: struct {
 	level:                Level,
 	players:              [2]Player,
 	camera:               Camera,
-	ui_context:           ^mu.Context,
+	ui_context:           UI_Context,
 	encounter_controller: Encounter_State_Controller,
 	timer_system:         Timer_System,
 	message_system:       Message_System,

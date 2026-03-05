@@ -58,8 +58,28 @@ update_messages :: proc(dt: f32) {
 
 		ok or_break reduce_queue
 	}
+}
 
-	if check_collision_point_rect(get_mouse_pos(), get_message_box_rect()) {
+@(private = "file")
+get_max_visible_messages :: proc() -> int {
+	return (MESSAGE_BOX_HEIGHT - MESSAGE_BOX_MARGIN) / (MESSAGE_FONT_SIZE + MESSAGE_BOX_MARGIN)
+}
+
+@(private = "file")
+get_message_box_rect :: proc() -> Rectangle {
+	return Rectangle {
+		5,
+		cast(f32)get_screen_height() - MESSAGE_BOX_HEIGHT - 5,
+		MESSAGE_BOX_WIDTH,
+		MESSAGE_BOX_HEIGHT,
+	}
+}
+
+draw_messages :: proc() {
+	rect := get_message_box_rect()
+	sys := &game.message_system
+
+	if ui_window(rect, "message_box") == .Hovered {
 		mouse_wheel_move := get_wheel_scroll()
 
 		if mouse_wheel_move < 0 &&
@@ -73,37 +93,15 @@ update_messages :: proc(dt: f32) {
 			}
 		}
 	}
-}
 
-@(private = "file")
-get_max_visible_messages :: proc() -> int {
-	return (MESSAGE_BOX_HEIGHT - MESSAGE_BOX_MARGIN) / (MESSAGE_FONT_SIZE + MESSAGE_BOX_MARGIN)
-}
-
-get_message_box_rect :: proc() -> Rectangle {
-	return Rectangle {
-		5,
-		cast(f32)get_screen_height() - MESSAGE_BOX_HEIGHT - 5,
-		MESSAGE_BOX_WIDTH,
-		MESSAGE_BOX_HEIGHT,
-	}
-}
-
-draw_messages :: proc() {
-	rec := get_message_box_rect()
-
-	draw_rectangle(rec, BLACK)
-
-	last_pos := Vec2{rec.x + MESSAGE_BOX_MARGIN, rec.y + MESSAGE_BOX_MARGIN}
-
-	sys := &game.message_system
+	last_pos := Vec2{rect.x + MESSAGE_BOX_MARGIN, rect.y + MESSAGE_BOX_MARGIN}
 
 	for message_index := sys.message_offset;
 	    message_index < queue.len(sys.message_queue);
 	    message_index += 1 {
 		message := queue.get_ptr(&sys.message_queue, message_index)
 
-		(last_pos.y + message.text_size.y < rec.y + rec.height) or_break
+		(last_pos.y + message.text_size.y < rect.y + rect.height) or_break
 
 		draw_text(
 			get_font_default(),
@@ -132,7 +130,7 @@ MESSAGE_FONT_SIZE :: 16
 MESSAGE_SPACING :: 2
 
 MESSAGE_BOX_WIDTH :: 350
-MESSAGE_BOX_HEIGHT :: 150
+MESSAGE_BOX_HEIGHT :: 145
 MESSAGE_BOX_MARGIN :: 4
 
 MESSAGE_CAPACITY :: 120

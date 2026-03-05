@@ -27,6 +27,7 @@ main :: proc() {
 	init_window(WINDOW_WIDTH, WINDOW_HEIGHT, GAME_TITLE)
 	defer {
 		shutdown_message_system()
+		shutdown_ui()
 		shutdown_game()
 		close_window()
 	}
@@ -35,6 +36,7 @@ main :: proc() {
 
 	{
 		init_game()
+		init_ui()
 		init_level()
 		init_camera()
 		init_player()

@@ -69,7 +69,7 @@ get_hex_for_vec :: proc(hmap: ^Hex_Map, pos: Vec2) -> (^Hex, bool) {
 
 @(private = "file")
 draw_coordinates :: proc(layout: Hex_Layout, h: ^Hex, color: ColorEx) {
-	font := get_raylib_font_from_ctx(game.ui_context)
+	font := get_font_default()
 	center := axial_to_pixel(layout, h)
 	coords := fmt.tprintf("%d,%d,%d", h.q, h.r, -h.q - h.r)
 
