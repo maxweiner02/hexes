@@ -1,150 +1,82 @@
 package hexes
 
 import "core:fmt"
-import mu "vendor:microui"
 
-init_mu :: proc() -> ^mu.Context {
-	font := new(Font)
-	font^ = get_font_default()
+draw_hex_info :: proc() {
+	INFO_FONT_SIZE :: 12
+	INFO_SPACING :: 1
+	INFO_ROW_HEIGHT :: 20
+	INFO_PADDING :: 6
+	INFO_WINDOW_MARGIN :: 4
+	INFO_WINDOW_WIDTH :: 250
 
-	style := new(mu.Style)
-	style^ = mu.default_style
-
-	style.font = mu.Font(font)
-
-	ctx := new(mu.Context)
-
-	mu.init(ctx)
-
-	ctx.style = style
-	ctx.text_width = mu_text_width
-	ctx.text_height = mu_text_height
-
-	return ctx
-}
-
-mu_text_width :: proc(font: mu.Font, str: string) -> i32 {
-	rl_font := get_raylib_font_from_mu(font)
-	return cast(i32)measure_text_ex(rl_font, str, cast(f32)rl_font.baseSize, 1).x
-}
-
-mu_text_height :: proc(font: mu.Font) -> i32 {
-	rl_font := get_raylib_font_from_mu(font)
-	return rl_font.baseSize
-}
-
-draw_microui_commands :: proc(ctx: ^mu.Context) {
-	cmd: ^mu.Command = nil
-
-	for mu.next_command(ctx, &cmd) {
-		#partial switch &var in cmd.variant {
-		case ^mu.Command_Rect:
-			{
-				rect := Rectangle {
-					cast(f32)var.rect.x,
-					cast(f32)var.rect.y,
-					cast(f32)var.rect.w,
-					cast(f32)var.rect.h,
-				}
-
-				draw_rectangle(rect, transmute(ColorEx)var.color)
-			}
-		case ^mu.Command_Text:
-			{
-				color := transmute(ColorEx)var.color
-
-				vec2d := Vec2{cast(f32)var.pos.x, cast(f32)var.pos.y}
-
-				font := (get_raylib_font_from_mu(var.font))
-
-				draw_text(font, var.str, vec2d, cast(f32)font.baseSize, 1, color)
-			}
-		}
-	}
-}
-
-update_mu_inputs :: proc(ctx: ^mu.Context) {
-	mouse_pos := get_mouse_pos()
-	mu.input_mouse_move(ctx, i32(mouse_pos.x), i32(mouse_pos.y))
-	if is_mouse_button_pressed(
-		LEFT_CLICK,
-	) {mu.input_mouse_down(ctx, i32(mouse_pos.x), i32(mouse_pos.y), .LEFT)
-	}
-	if is_mouse_button_released(LEFT_CLICK) {
-		mu.input_mouse_up(ctx, i32(mouse_pos.x), i32(mouse_pos.y), .LEFT)
-	}
-}
-
-update_end_turn_button :: proc(ctx: ^mu.Context) {
-	win_width: i32 = 110
-	win_height: i32 = 40
-	win_x: i32 = WINDOW_WIDTH - win_width - 5
-	win_y: i32 = 5
-
-	if mu.begin_window(
-		ctx,
-		"end_turn",
-		{win_x, win_y, win_width, win_height},
-		{.NO_CLOSE, .NO_SCROLL, .NO_TITLE, .AUTO_SIZE, .NO_FRAME},
-	) {
-		mu.layout_row(ctx, {win_width - 16})
-		if .SUBMIT in mu.button(ctx, "End Turn") {
-			game.encounter_controller.end_turn_requested = true
-		}
-		mu.end_window(ctx)
-	}
-}
-
-update_hovered_hex_window :: proc(ctx: ^mu.Context) {
 	if !game.players[0].is_hovering do return
 
-	// at 14 font_size, the window will be 78 px tall with 3 rows
-	if mu.begin_window(
-		ctx,
-		"hovered_hex",
-		{WINDOW_WIDTH - (150 + 5), WINDOW_HEIGHT - (78 + 5), 0, 0},
-		{.NO_CLOSE, .NO_INTERACT, .NO_RESIZE, .NO_SCROLL, .NO_TITLE, .AUTO_SIZE},
-	) {
-		mu.layout_row(ctx, {150 - 10})
+	hex := game.level.hex_map.hmap[game.players[0].hover_hex_id]
+	pawn, has_pawn := get_pawn_for_hex(game.players[0].hover_hex_id)
 
-		terrain_str := fmt.tprintf(
-			"Terrain - %v | Cost - %v",
-			game.level.hex_map.hmap[game.players[0].hover_hex_id].terrain,
-			TERRAIN_DATA[game.level.hex_map.hmap[game.players[0].hover_hex_id].terrain].movement_cost,
+	// in order for window to show must be hovering a hex so terrain will
+	// always be present
+	row_count := 1
+	if hex.structure != .None do row_count += 1
+	if has_pawn do row_count += 1
+	window_height := f32(INFO_PADDING + row_count * INFO_ROW_HEIGHT)
+
+	begin_window(
+		Rectangle {
+			x = WINDOW_WIDTH - INFO_WINDOW_WIDTH - INFO_WINDOW_MARGIN,
+			y = f32(WINDOW_HEIGHT) - window_height - INFO_WINDOW_MARGIN,
+			width = INFO_WINDOW_WIDTH,
+			height = window_height,
+		},
+		"hex_info_panel",
+		INFO_PADDING,
+	)
+
+	layout_row(INFO_ROW_HEIGHT)
+	r := layout_col(-1)
+	terrain_str := fmt.tprintf(
+		"Terrain - %v | Cost - %v",
+		hex.terrain,
+		TERRAIN_DATA[hex.terrain].movement_cost,
+	)
+	draw_text(get_font_default(), terrain_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
+
+	if hex.structure != .None {
+		layout_row(INFO_ROW_HEIGHT)
+		r = layout_col(-1)
+		structure_str := fmt.tprintf("Structure - %v", hex.structure)
+		draw_text(
+			get_font_default(),
+			structure_str,
+			{r.x, r.y},
+			INFO_FONT_SIZE,
+			INFO_SPACING,
+			WHITE,
 		)
-
-		mu.text(ctx, terrain_str)
-
-		if game.level.hex_map.hmap[game.players[0].hover_hex_id].structure != .None {
-			structure_str := fmt.tprintf(
-				"Structure - %v",
-				game.level.hex_map.hmap[game.players[0].hover_hex_id].structure,
-			)
-
-			mu.text(ctx, structure_str)
-		}
-
-		pawn, ok := get_pawn_for_hex(game.players[0].hover_hex_id)
-		if ok {
-			pawn_str := fmt.tprintf("Unit - %v", pawn.name)
-			mu.text(ctx, pawn_str)
-
-			movement_str := fmt.tprintf("Movement - %v", pawn.cur_movement_range)
-			mu.text(ctx, movement_str)
-		}
-
-		mu.end_window(ctx)
 	}
-}
 
-get_raylib_font_from_mu :: proc(f: mu.Font) -> Font {
-	if f == nil {
-		fmt.println("[FALLBACK]font ptr is null")
-		return get_font_default()
+	if has_pawn {
+		layout_row(INFO_ROW_HEIGHT)
+		r = layout_col(0.5)
+		draw_text(
+			get_font_default(),
+			fmt.tprintf("Unit - %v", pawn.name),
+			{r.x, r.y},
+			INFO_FONT_SIZE,
+			INFO_SPACING,
+			WHITE,
+		)
+		r = layout_col(0.5)
+		draw_text(
+			get_font_default(),
+			fmt.tprintf("Movement - %v", pawn.cur_movement_range),
+			{r.x, r.y},
+			INFO_FONT_SIZE,
+			INFO_SPACING,
+			WHITE,
+		)
 	}
-	return (cast(^Font)f)^
-}
 
-get_raylib_font_from_ctx :: proc(ctx: ^mu.Context) -> Font {
-	return get_raylib_font_from_mu(ctx.style.font)
+	end_window()
 }

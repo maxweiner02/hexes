@@ -79,7 +79,7 @@ draw_messages :: proc() {
 	rect := get_message_box_rect()
 	sys := &game.message_system
 
-	if ui_window(rect, "message_box") == .Hovered {
+	if begin_window(rect, "message_box") == .Hovered {
 		mouse_wheel_move := get_wheel_scroll()
 
 		if mouse_wheel_move < 0 &&
@@ -114,6 +114,8 @@ draw_messages :: proc() {
 
 		last_pos.y += message.text_size.y + MESSAGE_BOX_MARGIN
 	}
+
+	end_window()
 }
 
 Message_System :: struct {
@@ -130,7 +132,7 @@ MESSAGE_FONT_SIZE :: 16
 MESSAGE_SPACING :: 2
 
 MESSAGE_BOX_WIDTH :: 350
-MESSAGE_BOX_HEIGHT :: 145
+MESSAGE_BOX_HEIGHT :: 144
 MESSAGE_BOX_MARGIN :: 4
 
 MESSAGE_CAPACITY :: 120

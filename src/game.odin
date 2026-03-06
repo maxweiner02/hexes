@@ -1,7 +1,5 @@
 package hexes
 
-import mu "vendor:microui"
-
 game: ^Game
 
 init_game :: proc() {
@@ -80,6 +78,7 @@ draw_ui :: proc() {
 		game.encounter_controller.end_turn_requested = true
 	}
 
+	draw_hex_info()
 	draw_messages()
 }
 

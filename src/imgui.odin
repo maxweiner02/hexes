@@ -6,6 +6,7 @@ init_ui :: proc() {
 	game.ui_context = {
 		prev_elements = make([dynamic]UI_Element),
 		cur_elements = make([dynamic]UI_Element),
+		layout_context_stack = make([dynamic]Layout_Context),
 		new_hot_layer = -1,
 		default_style = {
 			font = get_font_default(),
@@ -25,6 +26,7 @@ shutdown_ui :: proc() {
 
 	delete(ctx.cur_elements)
 	delete(ctx.prev_elements)
+	delete(ctx.layout_context_stack)
 }
 
 begin_ui :: proc() {
@@ -133,6 +135,85 @@ draw_button :: proc(rect: Rectangle, text: string, color: ColorEx) {
 	}
 }
 
+begin_window :: proc(rect: Rectangle, label: string, padding: f32 = 6) -> Window_State {
+	ctx := &game.ui_context
+
+	layout := Layout_Context {
+		cursor_start_x  = rect.x + padding,
+		cursor          = {rect.x + padding, rect.y + padding},
+		available_width = rect.width - padding * 2,
+		padding         = padding,
+	}
+
+	append(&ctx.layout_context_stack, layout)
+
+	return ui_window(rect, label)
+}
+
+layout_row :: proc(height: f32) {
+	layout := get_current_layout()
+
+	layout.cursor.y += layout.row_height
+	layout.cursor.x = layout.cursor_start_x
+	layout.row_height = height
+}
+
+layout_col :: proc(width: f32) -> Rectangle {
+	layout := get_current_layout()
+	start_x := layout.cursor.x
+
+	computed_width: f32
+	if width < 0 {
+		computed_width = (layout.cursor_start_x + layout.available_width) - start_x
+	} else if width < 1.0 {
+		computed_width = layout.available_width * width
+	} else {
+		computed_width = width
+	}
+
+	layout.cursor.x += computed_width
+
+	return Rectangle {
+		x = start_x,
+		y = layout.cursor.y,
+		width = computed_width,
+		height = layout.row_height,
+	}
+}
+
+@(private = "file")
+get_current_layout :: proc() -> ^Layout_Context {
+	ctx := &game.ui_context
+
+	return &ctx.layout_context_stack[len(ctx.layout_context_stack) - 1]
+}
+
+end_window :: proc() {
+	ctx := &game.ui_context
+
+	pop(&ctx.layout_context_stack)
+}
+
+@(private = "file")
+ui_window :: proc(rect: Rectangle, label: string, texture: Texture_2D = {}) -> Window_State {
+	ctx := &game.ui_context
+	style := ctx.default_style
+
+	element := UI_Element {
+		id    = ui_id(label),
+		rect  = rect,
+		layer = 0,
+	}
+
+	append(&ctx.cur_elements, element)
+
+	draw_rectangle(rect, style.color)
+
+	if check_collision_point_rect(ctx.mouse_pos, rect) do return .Hovered
+
+	return .Normal
+}
+
 Default_Style :: struct {
 	font:           Font,
 	font_size:      f32,
@@ -161,25 +242,6 @@ Button_State :: enum {
 	Disabled,
 }
 
-ui_window :: proc(rect: Rectangle, label: string) -> Window_State {
-	ctx := &game.ui_context
-	style := ctx.default_style
-
-	element := UI_Element {
-		id    = ui_id(label),
-		rect  = rect,
-		layer = 0,
-	}
-
-	append(&ctx.cur_elements, element)
-
-	draw_rectangle(rect, style.color)
-
-	if check_collision_point_rect(ctx.mouse_pos, rect) do return .Hovered
-
-	return .Normal
-}
-
 Window_State :: enum {
 	Normal,
 	Hovered,
@@ -199,29 +261,44 @@ UI_Element :: struct {
 	layer: UI_Layer,
 }
 
+Layout_Context :: struct {
+	// current position the draw cursor
+	cursor:          Vec2,
+	// X pos of the start of each row (rect.x + padding)
+	cursor_start_x:  f32,
+	// height of the current row
+	row_height:      f32,
+	// total width available in a row (not including padding)
+	available_width: f32,
+	// padding on edges of rect
+	padding:         f32,
+}
+
 UI_Context :: struct {
 	// ui element hovered during the last frame; 0 = None
-	hot_id:           UI_Id,
+	hot_id:               UI_Id,
 	// ui element being held down during the last frame; 0 = None
-	active_id:        UI_Id,
+	active_id:            UI_Id,
 	// ui element hovered during *this* frame
-	new_hot_id:       UI_Id,
+	new_hot_id:           UI_Id,
 	// elements from last frame (built from cur_elements
 	// at the end of the frame)
-	prev_elements:    [dynamic]UI_Element,
+	prev_elements:        [dynamic]UI_Element,
 	// elements during this frame (committed to prev_elements
 	// at the end of drawing)
-	cur_elements:     [dynamic]UI_Element,
+	cur_elements:         [dynamic]UI_Element,
 	// highest layer the mouse is over this frame. -1 = None
-	new_hot_layer:    int,
-	mouse_pos:        Vec2,
-	is_left_press:    bool,
-	is_left_release:  bool,
-	is_left_hold:     bool,
-	is_right_press:   bool,
-	is_right_release: bool,
-	is_right_hold:    bool,
+	new_hot_layer:        int,
+	mouse_pos:            Vec2,
+	is_left_press:        bool,
+	is_left_release:      bool,
+	is_left_hold:         bool,
+	is_right_press:       bool,
+	is_right_release:     bool,
+	is_right_hold:        bool,
 
 	// default styling for when no texture is provided
-	default_style:    Default_Style,
+	default_style:        Default_Style,
+	// stack of layout_context structs for windows
+	layout_context_stack: [dynamic]Layout_Context,
 }
