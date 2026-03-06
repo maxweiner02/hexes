@@ -187,7 +187,10 @@ draw_hex_map :: proc() {
 	}
 
 	// this is the path using A* to the hovered hex
-	if player.is_hovering && player.cached_path != nil && is_input_phase {
+	if player.is_hovering &&
+	   player.cached_path != nil &&
+	   player.select_pawn != nil &&
+	   is_input_phase {
 		draw_path(player.cached_path)
 	}
 

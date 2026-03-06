@@ -85,6 +85,13 @@ update_player_selection :: proc(dt: f32) {
 
 		pawn, ok := get_pawn_for_hex(player.select_hex_id)
 		player.select_pawn = ok ? pawn : nil
+
+		// if we select a hex without a pawn we need to clear
+		// the cached path
+		if !ok && player.cached_path != nil {
+			delete(player.cached_path)
+			player.cached_path = nil
+		}
 	}
 }
 
