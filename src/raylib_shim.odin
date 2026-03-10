@@ -105,6 +105,7 @@ check_collision_point_rect :: raylib.CheckCollisionPointRec
 
 get_mouse_pos :: raylib.GetMousePosition
 get_wheel_scroll :: raylib.GetMouseWheelMove
+get_char_pressed :: raylib.GetCharPressed
 
 screen_to_world_2d :: raylib.GetScreenToWorld2D
 
@@ -116,11 +117,13 @@ LEFT_CLICK :: raylib.MouseButton.LEFT
 RIGHT_CLICK :: raylib.MouseButton.RIGHT
 
 is_key_down :: raylib.IsKeyDown
+is_key_pressed_repeat :: raylib.IsKeyPressedRepeat
 
 UP :: raylib.KeyboardKey.UP
 DOWN :: raylib.KeyboardKey.DOWN
 LEFT :: raylib.KeyboardKey.LEFT
 RIGHT :: raylib.KeyboardKey.RIGHT
+BACKSPACE :: raylib.KeyboardKey.BACKSPACE
 
 BLACK :: raylib.BLACK
 WHITE :: raylib.WHITE

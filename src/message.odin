@@ -7,6 +7,7 @@ init_message_system :: proc() {
 	game.message_system = {}
 
 	queue.init(&game.message_system.message_queue, MESSAGE_CAPACITY)
+	strings.builder_init(&game.message_system.command_buffer)
 }
 
 shutdown_message_system :: proc() {
@@ -19,6 +20,7 @@ shutdown_message_system :: proc() {
 	}
 
 	queue.destroy(&sys.message_queue)
+	strings.builder_destroy(&game.message_system.command_buffer)
 }
 
 add_message :: proc(message: string) {
@@ -69,7 +71,7 @@ get_max_visible_messages :: proc() -> int {
 get_message_box_rect :: proc() -> Rectangle {
 	return Rectangle {
 		5,
-		cast(f32)get_screen_height() - MESSAGE_BOX_HEIGHT - 5,
+		cast(f32)get_screen_height() - MESSAGE_BOX_HEIGHT - TEXT_BOX_HEIGHT - 5,
 		MESSAGE_BOX_WIDTH,
 		MESSAGE_BOX_HEIGHT,
 	}
@@ -116,11 +118,21 @@ draw_messages :: proc() {
 	}
 
 	end_window()
+
+	text_box_rect := Rectangle {
+		5,
+		cast(f32)get_screen_height() - TEXT_BOX_HEIGHT - 5,
+		MESSAGE_BOX_WIDTH,
+		TEXT_BOX_HEIGHT,
+	}
+
+	ui_textbox(text_box_rect, "command_text_box", &sys.command_buffer)
 }
 
 Message_System :: struct {
 	message_queue:  queue.Queue(Message),
 	message_offset: int,
+	command_buffer: strings.Builder,
 }
 
 Message :: struct {
@@ -134,5 +146,7 @@ MESSAGE_SPACING :: 2
 MESSAGE_BOX_WIDTH :: 350
 MESSAGE_BOX_HEIGHT :: 144
 MESSAGE_BOX_MARGIN :: 4
+
+TEXT_BOX_HEIGHT :: 30
 
 MESSAGE_CAPACITY :: 120

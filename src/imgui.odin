@@ -1,6 +1,8 @@
 package hexes
 
 import "core:hash"
+import "core:strings"
+import "core:unicode/utf8"
 
 init_ui :: proc() {
 	game.ui_context = {
@@ -19,6 +21,8 @@ init_ui :: proc() {
 			disabled_color = LIGHTGRAY,
 		},
 	}
+	game.ui_context.cursor_blink = create_timer(0.5)
+	game.ui_context.cursor_visible = true
 }
 
 shutdown_ui :: proc() {
@@ -27,6 +31,8 @@ shutdown_ui :: proc() {
 	delete(ctx.cur_elements)
 	delete(ctx.prev_elements)
 	delete(ctx.layout_context_stack)
+	delete(ctx.queued_chars)
+	destroy_timer(ctx.cursor_blink)
 }
 
 begin_ui :: proc() {
@@ -44,6 +50,18 @@ begin_ui :: proc() {
 	ctx.is_right_press = is_mouse_button_pressed(RIGHT_CLICK)
 	ctx.is_right_release = is_mouse_button_released(RIGHT_CLICK)
 	ctx.is_right_hold = is_mouse_button_down(RIGHT_CLICK)
+	ctx.is_backspace_down = is_key_pressed_repeat(BACKSPACE)
+
+	for {
+		char := get_char_pressed()
+		if char == 0 do break
+		append(&ctx.queued_chars, char)
+	}
+
+	if timer_is_expired(ctx.cursor_blink) {
+		ctx.cursor_visible = !ctx.cursor_visible
+		reset_timer(ctx.cursor_blink)
+	}
 }
 
 end_ui :: proc() {
@@ -52,6 +70,9 @@ end_ui :: proc() {
 	ctx.hot_id = ctx.new_hot_id
 
 	if !ctx.is_left_hold do ctx.active_id = 0
+	if ctx.is_left_press && ctx.new_hot_id != ctx.focused_id do ctx.focused_id = 0
+
+	clear_dynamic_array(&ctx.queued_chars)
 }
 
 @(private = "file")
@@ -84,16 +105,7 @@ ui_button :: proc(rect: Rectangle, label: string, params: Button_Params) -> Butt
 		return .Disabled
 	}
 
-	is_hovered := check_collision_point_rect(ctx.mouse_pos, rect)
-
-	if is_hovered {
-		check_layers: for elem in ctx.prev_elements {
-			if elem.layer > element.layer && check_collision_point_rect(ctx.mouse_pos, elem.rect) {
-				is_hovered = false
-				break check_layers
-			}
-		}
-	}
+	is_hovered := ui_is_hovered(rect, element.layer)
 
 	if is_hovered && element.layer >= ctx.new_hot_layer {
 		ctx.new_hot_layer = element.layer
@@ -181,6 +193,83 @@ layout_col :: proc(width: f32) -> Rectangle {
 	}
 }
 
+ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) -> Textbox_State {
+	ctx := &game.ui_context
+	style := ctx.default_style
+
+	element := UI_Element {
+		rect  = rect,
+		id    = ui_id(label),
+		layer = UI_LAYER_PANEL,
+	}
+
+	append(&ctx.cur_elements, element)
+
+	draw_rectangle(rect, WHITE)
+
+	is_hovered := ui_is_hovered(rect, element.layer)
+
+	if is_hovered && element.layer >= ctx.new_hot_layer {
+		ctx.new_hot_layer = element.layer
+		ctx.new_hot_id = element.id
+	}
+
+	if ctx.hot_id == element.id && ctx.is_left_press {
+		ctx.active_id = element.id
+		ctx.focused_id = element.id
+		ctx.cursor_visible = true
+	}
+
+	if ctx.focused_id == element.id {
+		for char in ctx.queued_chars {
+			strings.write_rune(builder, char)
+		}
+		if ctx.is_backspace_down && len(builder.buf) > 0 {
+			string := strings.to_string(builder^)
+			_, rune_size := utf8.decode_last_rune_in_string(string)
+			resize(&builder.buf, len(builder.buf) - rune_size)
+		}
+	}
+
+	padding := style.spacing * 2
+	text := strings.to_string(builder^)
+
+	if text != "" {
+		pos := Vec2{rect.x + padding, rect.y + rect.height / 2 - style.font_size / 2}
+		draw_text(style.font, text, pos, style.font_size, style.spacing, BLACK)
+	}
+
+	if ctx.focused_id == element.id && ctx.cursor_visible {
+		text_size := measure_text_ex(style.font, text, style.font_size, style.spacing)
+		cursor_x := rect.x + padding + text_size.x
+		draw_line({cursor_x, rect.y + 2}, {cursor_x, rect.y + rect.height - 2}, 1, BLACK)
+	}
+
+	if ctx.active_id == element.id {
+		if ctx.is_left_release do return .Focused
+		return .Hovered
+	}
+
+	if is_hovered {
+		return .Hovered
+	}
+
+	return .Normal
+}
+
+@(private = "file")
+ui_is_hovered :: proc(rect: Rectangle, layer: UI_Layer) -> bool {
+	ctx := &game.ui_context
+
+	if !check_collision_point_rect(ctx.mouse_pos, rect) do return false
+
+	for elem in ctx.prev_elements {
+		if elem.layer > layer && check_collision_point_rect(ctx.mouse_pos, elem.rect) do return false
+	}
+
+	return true
+}
+
 @(private = "file")
 get_current_layout :: proc() -> ^Layout_Context {
 	ctx := &game.ui_context
@@ -202,7 +291,7 @@ ui_window :: proc(rect: Rectangle, label: string, texture: Texture_2D = {}) -> W
 	element := UI_Element {
 		id    = ui_id(label),
 		rect  = rect,
-		layer = 0,
+		layer = UI_LAYER_PANEL,
 	}
 
 	append(&ctx.cur_elements, element)
@@ -247,6 +336,13 @@ Window_State :: enum {
 	Hovered,
 }
 
+Textbox_State :: enum {
+	Normal,
+	Hovered,
+	Focused,
+	Disabled,
+}
+
 UI_Id :: u64
 
 UI_Layer :: int
@@ -279,6 +375,8 @@ UI_Context :: struct {
 	hot_id:               UI_Id,
 	// ui element being held down during the last frame; 0 = None
 	active_id:            UI_Id,
+	// ui element currently focused (will take any keyboard inputs)
+	focused_id:           UI_Id,
 	// ui element hovered during *this* frame
 	new_hot_id:           UI_Id,
 	// elements from last frame (built from cur_elements
@@ -296,6 +394,13 @@ UI_Context :: struct {
 	is_right_press:       bool,
 	is_right_release:     bool,
 	is_right_hold:        bool,
+	is_backspace_down:    bool,
+
+	// runes typed this frame
+	queued_chars:         [dynamic]rune,
+	// textbox cursor blink timer and visibility bool
+	cursor_blink:         ^Timer,
+	cursor_visible:       bool,
 
 	// default styling for when no texture is provided
 	default_style:        Default_Style,

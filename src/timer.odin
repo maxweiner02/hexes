@@ -28,6 +28,11 @@ create_timer :: proc(duration: f32) -> ^Timer {
 	return timer
 }
 
+reset_timer :: proc(timer: ^Timer) {
+	timer.elapsed = 0
+	timer.is_expired = false
+}
+
 destroy_timer :: proc(timer: ^Timer) {
 	timer.is_active = false
 }
