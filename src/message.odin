@@ -1,6 +1,7 @@
 package hexes
 
 import "core:container/queue"
+import "core:fmt"
 import "core:strings"
 
 init_message_system :: proc() {
@@ -126,7 +127,10 @@ draw_messages :: proc() {
 		TEXT_BOX_HEIGHT,
 	}
 
-	ui_textbox(text_box_rect, "command_text_box", &sys.command_buffer)
+	if ui_textbox(text_box_rect, "command_text_box", &sys.command_buffer) == .Submitted {
+		fmt.println(strings.to_string(sys.command_buffer))
+		clear(&sys.command_buffer.buf)
+	}
 }
 
 Message_System :: struct {

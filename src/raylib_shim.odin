@@ -28,6 +28,8 @@ end_drawing :: raylib.EndDrawing
 
 clear_background :: raylib.ClearBackground
 
+unload_font :: raylib.UnloadFont
+
 get_font_default :: raylib.GetFontDefault
 
 vec2_length :: raylib.Vector2Length
@@ -96,6 +98,11 @@ draw_text :: proc(
 	raylib.DrawTextEx(font, ctext, pos, fontSize, spacing, color)
 }
 
+load_font :: proc(filepath: string) -> Font {
+	cpath := strings.clone_to_cstring(filepath, context.temp_allocator)
+	return raylib.LoadFont(cpath)
+}
+
 Font :: raylib.Font
 
 Rectangle :: raylib.Rectangle
@@ -117,12 +124,14 @@ LEFT_CLICK :: raylib.MouseButton.LEFT
 RIGHT_CLICK :: raylib.MouseButton.RIGHT
 
 is_key_down :: raylib.IsKeyDown
+is_key_pressed :: raylib.IsKeyPressed
 is_key_pressed_repeat :: raylib.IsKeyPressedRepeat
 
 UP :: raylib.KeyboardKey.UP
 DOWN :: raylib.KeyboardKey.DOWN
 LEFT :: raylib.KeyboardKey.LEFT
 RIGHT :: raylib.KeyboardKey.RIGHT
+ENTER :: raylib.KeyboardKey.ENTER
 BACKSPACE :: raylib.KeyboardKey.BACKSPACE
 
 BLACK :: raylib.BLACK

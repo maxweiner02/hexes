@@ -3,17 +3,21 @@ package hexes
 import "core:hash"
 import "core:strings"
 import "core:unicode/utf8"
+import "vendor:raylib"
 
 init_ui :: proc() {
+	sprite_font := load_font("./data/fonts/alagard.png")
+
 	game.ui_context = {
 		prev_elements = make([dynamic]UI_Element),
 		cur_elements = make([dynamic]UI_Element),
 		layout_context_stack = make([dynamic]Layout_Context),
 		new_hot_layer = -1,
-		default_style = {
-			font = get_font_default(),
+		ui_style = {
+			font = sprite_font,
 			font_size = 16,
 			spacing = 2,
+			padding = 4,
 			text_color = WHITE,
 			color = BLACK,
 			hover_color = GRAY,
@@ -33,6 +37,7 @@ shutdown_ui :: proc() {
 	delete(ctx.layout_context_stack)
 	delete(ctx.queued_chars)
 	destroy_timer(ctx.cursor_blink)
+	unload_font(ctx.ui_style.font)
 }
 
 begin_ui :: proc() {
@@ -50,7 +55,8 @@ begin_ui :: proc() {
 	ctx.is_right_press = is_mouse_button_pressed(RIGHT_CLICK)
 	ctx.is_right_release = is_mouse_button_released(RIGHT_CLICK)
 	ctx.is_right_hold = is_mouse_button_down(RIGHT_CLICK)
-	ctx.is_backspace_down = is_key_pressed_repeat(BACKSPACE)
+	ctx.is_backspace_down = is_key_pressed(BACKSPACE) || is_key_pressed_repeat(BACKSPACE)
+	ctx.is_enter_press = is_key_pressed(ENTER)
 
 	for {
 		char := get_char_pressed()
@@ -90,7 +96,7 @@ ui_consuming_mouse :: proc() -> bool {
 
 ui_button :: proc(rect: Rectangle, label: string, params: Button_Params) -> Button_State {
 	ctx := &game.ui_context
-	style := ctx.default_style
+	style := ctx.ui_style
 
 	element := UI_Element {
 		id    = ui_id(label),
@@ -133,7 +139,7 @@ ui_button :: proc(rect: Rectangle, label: string, params: Button_Params) -> Butt
 
 @(private = "file")
 draw_button :: proc(rect: Rectangle, text: string, color: ColorEx) {
-	style := &game.ui_context.default_style
+	style := &game.ui_context.ui_style
 
 	draw_rectangle(rect, color)
 
@@ -147,14 +153,19 @@ draw_button :: proc(rect: Rectangle, text: string, color: ColorEx) {
 	}
 }
 
-begin_window :: proc(rect: Rectangle, label: string, padding: f32 = 6) -> Window_State {
+begin_window :: proc(
+	rect: Rectangle,
+	label: string,
+	padding: f32 = game.ui_context.ui_style.padding,
+) -> Window_State {
 	ctx := &game.ui_context
+	style := ctx.ui_style
 
 	layout := Layout_Context {
-		cursor_start_x  = rect.x + padding,
-		cursor          = {rect.x + padding, rect.y + padding},
-		available_width = rect.width - padding * 2,
-		padding         = padding,
+		cursor_start_x  = rect.x + style.padding,
+		cursor          = {rect.x + style.padding, rect.y + style.padding},
+		available_width = rect.width - style.padding * 2,
+		padding         = style.padding,
 	}
 
 	append(&ctx.layout_context_stack, layout)
@@ -195,7 +206,7 @@ layout_col :: proc(width: f32) -> Rectangle {
 
 ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) -> Textbox_State {
 	ctx := &game.ui_context
-	style := ctx.default_style
+	style := ctx.ui_style
 
 	element := UI_Element {
 		rect  = rect,
@@ -231,18 +242,21 @@ ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) ->
 		}
 	}
 
-	padding := style.spacing * 2
 	text := strings.to_string(builder^)
+	visible_text := get_visible_text(rect, text)
 
-	if text != "" {
-		pos := Vec2{rect.x + padding, rect.y + rect.height / 2 - style.font_size / 2}
-		draw_text(style.font, text, pos, style.font_size, style.spacing, BLACK)
+	if visible_text != "" {
+		pos := Vec2{rect.x + style.padding, rect.y + rect.height / 2 - style.font_size / 2}
+		draw_text(style.font, visible_text, pos, style.font_size, style.spacing, BLACK)
 	}
 
-	if ctx.focused_id == element.id && ctx.cursor_visible {
-		text_size := measure_text_ex(style.font, text, style.font_size, style.spacing)
-		cursor_x := rect.x + padding + text_size.x
-		draw_line({cursor_x, rect.y + 2}, {cursor_x, rect.y + rect.height - 2}, 1, BLACK)
+	if ctx.focused_id == element.id {
+		if ctx.cursor_visible {
+			text_size := measure_text_ex(style.font, visible_text, style.font_size, style.spacing)
+			cursor_x := rect.x + style.padding + text_size.x + 2
+			draw_line({cursor_x, rect.y + 2}, {cursor_x, rect.y + rect.height - 2}, 1, BLACK)
+		}
+		if ctx.is_enter_press do return .Submitted
 	}
 
 	if ctx.active_id == element.id {
@@ -255,6 +269,26 @@ ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) ->
 	}
 
 	return .Normal
+}
+
+@(private = "file")
+get_visible_text :: proc(rect: Rectangle, text: string) -> string {
+	ctx := &game.ui_context
+	style := ctx.ui_style
+
+	available_width := rect.width - style.padding * 2
+
+	result_str := text
+
+	for {
+		text_width := measure_text_ex(style.font, result_str, style.font_size, style.spacing)
+		if text_width.x > available_width {
+			_, rune_size := utf8.decode_rune_in_string(result_str)
+			result_str = result_str[rune_size:]
+		} else {
+			return result_str
+		}
+	}
 }
 
 @(private = "file")
@@ -286,7 +320,7 @@ end_window :: proc() {
 @(private = "file")
 ui_window :: proc(rect: Rectangle, label: string, texture: Texture_2D = {}) -> Window_State {
 	ctx := &game.ui_context
-	style := ctx.default_style
+	style := ctx.ui_style
 
 	element := UI_Element {
 		id    = ui_id(label),
@@ -303,10 +337,11 @@ ui_window :: proc(rect: Rectangle, label: string, texture: Texture_2D = {}) -> W
 	return .Normal
 }
 
-Default_Style :: struct {
+UI_Style :: struct {
 	font:           Font,
 	font_size:      f32,
 	spacing:        f32,
+	padding:        f32,
 	text_color:     ColorEx,
 	color:          ColorEx,
 	hover_color:    ColorEx,
@@ -341,6 +376,7 @@ Textbox_State :: enum {
 	Hovered,
 	Focused,
 	Disabled,
+	Submitted,
 }
 
 UI_Id :: u64
@@ -395,6 +431,7 @@ UI_Context :: struct {
 	is_right_release:     bool,
 	is_right_hold:        bool,
 	is_backspace_down:    bool,
+	is_enter_press:       bool,
 
 	// runes typed this frame
 	queued_chars:         [dynamic]rune,
@@ -403,7 +440,7 @@ UI_Context :: struct {
 	cursor_visible:       bool,
 
 	// default styling for when no texture is provided
-	default_style:        Default_Style,
+	ui_style:             UI_Style,
 	// stack of layout_context structs for windows
 	layout_context_stack: [dynamic]Layout_Context,
 }
