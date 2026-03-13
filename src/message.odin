@@ -31,12 +31,7 @@ add_message :: proc(message: string) {
 		&sys.message_queue,
 		Message {
 			msg = strings.clone(message),
-			text_size = measure_text_ex(
-				get_font_default(),
-				message,
-				MESSAGE_FONT_SIZE,
-				MESSAGE_SPACING,
-			),
+			text_size = measure_text_ex(get_font(), message, MESSAGE_FONT_SIZE, MESSAGE_SPACING),
 		},
 	)
 
@@ -106,14 +101,7 @@ draw_messages :: proc() {
 
 		(last_pos.y + message.text_size.y < rect.y + rect.height) or_break
 
-		draw_text(
-			get_font_default(),
-			message.msg,
-			last_pos,
-			MESSAGE_FONT_SIZE,
-			MESSAGE_SPACING,
-			WHITE,
-		)
+		draw_text(get_font(), message.msg, last_pos, MESSAGE_FONT_SIZE, MESSAGE_SPACING, WHITE)
 
 		last_pos.y += message.text_size.y + MESSAGE_BOX_MARGIN
 	}

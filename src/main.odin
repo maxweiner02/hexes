@@ -28,6 +28,7 @@ main :: proc() {
 	defer {
 		shutdown_message_system()
 		shutdown_ui()
+		unload_assets()
 		shutdown_game()
 		close_window()
 	}
@@ -36,6 +37,7 @@ main :: proc() {
 
 	{
 		init_game()
+		load_assets()
 		init_ui()
 		init_level()
 		init_camera()

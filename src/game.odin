@@ -47,7 +47,6 @@ draw :: proc() {
 	begin_drawing()
 	clear_background(WHITE)
 
-
 	{
 		begin_2d_mode(game.camera)
 
@@ -62,22 +61,7 @@ draw :: proc() {
 }
 
 draw_ui :: proc() {
-	end_btn_rect := Rectangle {
-		x      = WINDOW_WIDTH - 105,
-		y      = 5,
-		width  = 100,
-		height = 26,
-	}
-
-	if ui_button(
-		   end_btn_rect,
-		   "end_turn_btn",
-		   Button_Params{text = "End Turn", layer = UI_LAYER_PANEL},
-	   ) ==
-	   .Pressed {
-		game.encounter_controller.end_turn_requested = true
-	}
-
+	draw_end_turn()
 	draw_hex_info()
 	draw_messages()
 }
@@ -98,4 +82,5 @@ Game :: struct {
 	encounter_controller: Encounter_State_Controller,
 	timer_system:         Timer_System,
 	message_system:       Message_System,
+	assets:               Assets,
 }

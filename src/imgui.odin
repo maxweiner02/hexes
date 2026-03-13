@@ -6,15 +6,13 @@ import "core:unicode/utf8"
 import "vendor:raylib"
 
 init_ui :: proc() {
-	sprite_font := load_font("./data/fonts/alagard.png")
-
 	game.ui_context = {
 		prev_elements = make([dynamic]UI_Element),
 		cur_elements = make([dynamic]UI_Element),
 		layout_context_stack = make([dynamic]Layout_Context),
 		new_hot_layer = -1,
 		ui_style = {
-			font = sprite_font,
+			font = get_font(),
 			font_size = 16,
 			spacing = 2,
 			padding = 4,
@@ -37,7 +35,6 @@ shutdown_ui :: proc() {
 	delete(ctx.layout_context_stack)
 	delete(ctx.queued_chars)
 	destroy_timer(ctx.cursor_blink)
-	unload_font(ctx.ui_style.font)
 }
 
 begin_ui :: proc() {
@@ -144,12 +141,12 @@ draw_button :: proc(rect: Rectangle, text: string, color: ColorEx) {
 	draw_rectangle(rect, color)
 
 	if text != "" {
-		text_size := measure_text_ex(style.font, text, style.font_size, style.spacing)
+		text_size := measure_text_ex(get_font(), text, style.font_size, style.spacing)
 		pos: Vec2 = {
 			rect.x + rect.width / 2 - text_size.x / 2,
 			rect.y + rect.height / 2 - text_size.y / 2,
 		}
-		draw_text(style.font, text, pos, style.font_size, style.spacing, style.text_color)
+		draw_text(get_font(), text, pos, style.font_size, style.spacing, style.text_color)
 	}
 }
 
@@ -247,12 +244,12 @@ ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) ->
 
 	if visible_text != "" {
 		pos := Vec2{rect.x + style.padding, rect.y + rect.height / 2 - style.font_size / 2}
-		draw_text(style.font, visible_text, pos, style.font_size, style.spacing, BLACK)
+		draw_text(get_font(), visible_text, pos, style.font_size, style.spacing, BLACK)
 	}
 
 	if ctx.focused_id == element.id {
 		if ctx.cursor_visible {
-			text_size := measure_text_ex(style.font, visible_text, style.font_size, style.spacing)
+			text_size := measure_text_ex(get_font(), visible_text, style.font_size, style.spacing)
 			cursor_x := rect.x + style.padding + text_size.x + 2
 			draw_line({cursor_x, rect.y + 2}, {cursor_x, rect.y + rect.height - 2}, 1, BLACK)
 		}
@@ -281,7 +278,7 @@ get_visible_text :: proc(rect: Rectangle, text: string) -> string {
 	result_str := text
 
 	for {
-		text_width := measure_text_ex(style.font, result_str, style.font_size, style.spacing)
+		text_width := measure_text_ex(get_font(), result_str, style.font_size, style.spacing)
 		if text_width.x > available_width {
 			_, rune_size := utf8.decode_rune_in_string(result_str)
 			result_str = result_str[rune_size:]

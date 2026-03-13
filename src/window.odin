@@ -40,27 +40,20 @@ draw_hex_info :: proc() {
 		hex.terrain,
 		TERRAIN_DATA[hex.terrain].movement_cost,
 	)
-	draw_text(get_font_default(), terrain_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
+	draw_text(get_font(), terrain_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
 
 	if hex.structure != .None {
 		layout_row(INFO_ROW_HEIGHT)
 		r = layout_col(-1)
 		structure_str := fmt.tprintf("Structure - %v", hex.structure)
-		draw_text(
-			get_font_default(),
-			structure_str,
-			{r.x, r.y},
-			INFO_FONT_SIZE,
-			INFO_SPACING,
-			WHITE,
-		)
+		draw_text(get_font(), structure_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
 	}
 
 	if has_pawn {
 		layout_row(INFO_ROW_HEIGHT)
 		r = layout_col(0.5)
 		draw_text(
-			get_font_default(),
+			get_font(),
 			fmt.tprintf("Unit - %v", pawn.name),
 			{r.x, r.y},
 			INFO_FONT_SIZE,
@@ -69,7 +62,7 @@ draw_hex_info :: proc() {
 		)
 		r = layout_col(0.5)
 		draw_text(
-			get_font_default(),
+			get_font(),
 			fmt.tprintf("Movement - %v", pawn.cur_movement_range),
 			{r.x, r.y},
 			INFO_FONT_SIZE,
@@ -79,4 +72,22 @@ draw_hex_info :: proc() {
 	}
 
 	end_window()
+}
+
+draw_end_turn :: proc() {
+	end_btn_rect := Rectangle {
+		x      = WINDOW_WIDTH - 105,
+		y      = 5,
+		width  = 100,
+		height = 26,
+	}
+
+	if ui_button(
+		   end_btn_rect,
+		   "end_turn_btn",
+		   Button_Params{text = "End Turn", layer = UI_LAYER_PANEL},
+	   ) ==
+	   .Pressed {
+		game.encounter_controller.end_turn_requested = true
+	}
 }
