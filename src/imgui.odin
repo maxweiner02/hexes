@@ -94,6 +94,7 @@ ui_consuming_mouse :: proc() -> bool {
 ui_button :: proc(rect: Rectangle, label: string, params: Button_Params) -> Button_State {
 	ctx := &game.ui_context
 	style := ctx.ui_style
+	rect := layout_rect(rect)
 
 	element := UI_Element {
 		id    = ui_id(label),
@@ -156,13 +157,14 @@ begin_window :: proc(
 	padding: f32 = game.ui_context.ui_style.padding,
 ) -> Window_State {
 	ctx := &game.ui_context
-	style := ctx.ui_style
+	rect := layout_rect(rect)
 
 	layout := Layout_Context {
-		cursor_start_x  = rect.x + style.padding,
-		cursor          = {rect.x + style.padding, rect.y + style.padding},
-		available_width = rect.width - style.padding * 2,
-		padding         = style.padding,
+		window_rect     = rect,
+		cursor_start_x  = rect.x + padding,
+		cursor          = {rect.x + padding, rect.y + padding},
+		available_width = rect.width - padding * 2,
+		padding         = padding,
 	}
 
 	append(&ctx.layout_context_stack, layout)
@@ -170,16 +172,36 @@ begin_window :: proc(
 	return ui_window(rect, label)
 }
 
+layout_offset :: proc(pos: Vec2) -> Vec2 {
+	layout := get_current_layout()
+	if layout == nil do return pos
+	return pos + Vec2{layout.window_rect.x, layout.window_rect.y}
+}
+
+layout_rect :: proc(rect: Rectangle) -> Rectangle {
+	layout := get_current_layout()
+	if layout == nil do return rect
+	return Rectangle {
+		x = layout.window_rect.x + rect.x,
+		y = layout.window_rect.y + rect.y,
+		width = rect.width,
+		height = rect.height,
+	}
+}
+
 layout_row :: proc(height: f32) {
 	layout := get_current_layout()
+	if layout == nil do return
 
 	layout.cursor.y += layout.row_height
 	layout.cursor.x = layout.cursor_start_x
 	layout.row_height = height
 }
 
+// returns a window-relative rect for the next column slot
 layout_col :: proc(width: f32) -> Rectangle {
 	layout := get_current_layout()
+	if layout == nil do return {}
 	start_x := layout.cursor.x
 
 	computed_width: f32
@@ -194,16 +216,22 @@ layout_col :: proc(width: f32) -> Rectangle {
 	layout.cursor.x += computed_width
 
 	return Rectangle {
-		x = start_x,
-		y = layout.cursor.y,
+		x = start_x - layout.window_rect.x,
+		y = layout.cursor.y - layout.window_rect.y,
 		width = computed_width,
 		height = layout.row_height,
 	}
 }
 
+ui_label :: proc(rect: Rectangle, text: string, font_size: f32, spacing: f32, color: ColorEx) {
+	r := layout_rect(rect)
+	draw_text(get_font(), text, {r.x, r.y}, font_size, spacing, color)
+}
+
 ui_textbox :: proc(rect: Rectangle, label: string, builder: ^strings.Builder) -> Textbox_State {
 	ctx := &game.ui_context
 	style := ctx.ui_style
+	rect := layout_rect(rect)
 
 	element := UI_Element {
 		rect  = rect,
@@ -304,7 +332,7 @@ ui_is_hovered :: proc(rect: Rectangle, layer: UI_Layer) -> bool {
 @(private = "file")
 get_current_layout :: proc() -> ^Layout_Context {
 	ctx := &game.ui_context
-
+	if len(ctx.layout_context_stack) == 0 do return nil
 	return &ctx.layout_context_stack[len(ctx.layout_context_stack) - 1]
 }
 
@@ -312,6 +340,12 @@ end_window :: proc() {
 	ctx := &game.ui_context
 
 	pop(&ctx.layout_context_stack)
+}
+
+get_window_rect :: proc() -> Rectangle {
+	layout := get_current_layout()
+	if layout == nil do return {}
+	return layout.window_rect
 }
 
 @(private = "file")
@@ -391,6 +425,8 @@ UI_Element :: struct {
 }
 
 Layout_Context :: struct {
+	// window's rect
+	window_rect:     Rectangle,
 	// current position the draw cursor
 	cursor:          Vec2,
 	// X pos of the start of each row (rect.x + padding)
