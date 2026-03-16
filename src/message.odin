@@ -116,8 +116,8 @@ draw_messages :: proc() {
 	}
 
 	if ui_textbox(text_box_rect, "command_text_box", &sys.command_buffer) == .Submitted {
-		fmt.println(strings.to_string(sys.command_buffer))
-		clear(&sys.command_buffer.buf)
+		process_command(strings.to_string(sys.command_buffer))
+    strings.builder_reset(&sys.command_buffer)
 	}
 }
 
