@@ -119,9 +119,8 @@ draw_messages :: proc() {
 		command_str := strings.to_string(sys.command_buffer)
 		command_print := fmt.tprintf("[COMMAND]: %v", command_str)
 		add_message(command_print)
-		fmt.println(strings.to_string(sys.command_buffer))
-		parse_command(command_str)
-		clear(&sys.command_buffer.buf)
+		process_command(command_str)
+		strings.builder_reset(&sys.command_buffer)
 	}
 }
 
