@@ -34,41 +34,17 @@ draw_hex_info :: proc() {
 	)
 
 	layout_row(INFO_ROW_HEIGHT)
-	r := layout_col(-1)
-	terrain_str := fmt.tprintf(
-		"Terrain - %v | Cost - %v",
-		hex.terrain,
-		TERRAIN_DATA[hex.terrain].movement_cost,
-	)
-	draw_text(get_font(), terrain_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
+	ui_label(layout_col(-1), fmt.tprintf("Terrain - %v | Cost - %v", hex.terrain, TERRAIN_DATA[hex.terrain].movement_cost), INFO_FONT_SIZE, INFO_SPACING, WHITE)
 
 	if hex.structure != .None {
 		layout_row(INFO_ROW_HEIGHT)
-		r = layout_col(-1)
-		structure_str := fmt.tprintf("Structure - %v", hex.structure)
-		draw_text(get_font(), structure_str, {r.x, r.y}, INFO_FONT_SIZE, INFO_SPACING, WHITE)
+		ui_label(layout_col(-1), fmt.tprintf("Structure - %v", hex.structure), INFO_FONT_SIZE, INFO_SPACING, WHITE)
 	}
 
 	if has_pawn {
 		layout_row(INFO_ROW_HEIGHT)
-		r = layout_col(0.5)
-		draw_text(
-			get_font(),
-			fmt.tprintf("Unit - %v", pawn.name),
-			{r.x, r.y},
-			INFO_FONT_SIZE,
-			INFO_SPACING,
-			WHITE,
-		)
-		r = layout_col(0.5)
-		draw_text(
-			get_font(),
-			fmt.tprintf("Movement - %v", pawn.cur_movement_range),
-			{r.x, r.y},
-			INFO_FONT_SIZE,
-			INFO_SPACING,
-			WHITE,
-		)
+		ui_label(layout_col(0.5), fmt.tprintf("Unit - %v", pawn.name), INFO_FONT_SIZE, INFO_SPACING, WHITE)
+		ui_label(layout_col(0.5), fmt.tprintf("Movement - %v", pawn.cur_movement_range), INFO_FONT_SIZE, INFO_SPACING, WHITE)
 	}
 
 	end_window()

@@ -74,10 +74,9 @@ get_message_box_rect :: proc() -> Rectangle {
 }
 
 draw_messages :: proc() {
-	rect := get_message_box_rect()
 	sys := &game.message_system
 
-	if begin_window(rect, "message_box") == .Hovered {
+	if begin_window(get_message_box_rect(), "message_box") == .Hovered {
 		mouse_wheel_move := get_wheel_scroll()
 
 		if mouse_wheel_move < 0 &&
@@ -92,14 +91,15 @@ draw_messages :: proc() {
 		}
 	}
 
-	last_pos := Vec2{rect.x + MESSAGE_BOX_MARGIN, rect.y + MESSAGE_BOX_MARGIN}
+	last_pos := layout_offset({MESSAGE_BOX_MARGIN, MESSAGE_BOX_MARGIN})
 
 	for message_index := sys.message_offset;
 	    message_index < queue.len(sys.message_queue);
 	    message_index += 1 {
 		message := queue.get_ptr(&sys.message_queue, message_index)
 
-		(last_pos.y + message.text_size.y < rect.y + rect.height) or_break
+		wnd := get_window_rect()
+		(last_pos.y + message.text_size.y < wnd.y + wnd.height) or_break
 
 		draw_text(get_font(), message.msg, last_pos, MESSAGE_FONT_SIZE, MESSAGE_SPACING, WHITE)
 
@@ -116,8 +116,11 @@ draw_messages :: proc() {
 	}
 
 	if ui_textbox(text_box_rect, "command_text_box", &sys.command_buffer) == .Submitted {
-		process_command(strings.to_string(sys.command_buffer))
-    strings.builder_reset(&sys.command_buffer)
+		command_str := strings.to_string(sys.command_buffer)
+		command_print := fmt.tprintf("[COMMAND]: %v", command_str)
+		add_message(command_print)
+		process_command(command_str)
+		strings.builder_reset(&sys.command_buffer)
 	}
 }
 
